@@ -1,0 +1,59 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.env
+
+# Project Specifics
+backend/storage/
+backend/chroma_data/
+backend/mongodb/
+*.db
+*.sqlite
+data/
+
+# IDE & OS
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Test files & results
+test_upload_files/
+testfiles/
+*.txt
+*.log
+backend/scripts/full_system_test.py
+check.py
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+.npm
+package-lock.json
+
+# Large Archives
+*.zip
+*.tar.gz
+*.rar

@@ -1,0 +1,152 @@
+@import "tailwindcss";
+@import "katex/dist/katex.min.css";
+
+@theme inline {
+  --font-sans: 'Inter', sans-serif;
+  --color-primary: #F3CE6E; /* Premium Yellow/Amber - primary now */
+  --color-secondary: #FFB800; /* Gold/Amber */
+  --color-accent: #F3CE6E; 
+  --radius-xl: 1.5rem;
+  --radius-2xl: 2rem;
+  --radius-3xl: 2.5rem;
+}
+
+/* ── Base ────────────────────────────────────── */
+body {
+  background: radial-gradient(circle at 0% 0%, #f0f7ff 0%, #ffffff 50%, #fffbeb 100%);
+  background-attachment: fixed;
+  color: #1e293b;
+  font-family: 'Inter', sans-serif;
+  min-height: 100vh;
+  position: relative;
+  overflow-x: hidden;
+}
+
+/* ── Custom Utilities ────────────────────────── */
+.glass {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.glass-dark {
+  background: rgba(15, 23, 42, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.shadow-soft {
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.02);
+}
+
+.shadow-premium {
+  box-shadow: 0 20px 50px -12px rgba(0, 0, 0, 0.08);
+}
+
+/* ── Neumorphism ───────────────────────────── */
+.btn-neumorphic {
+  background: #f8fafc;
+  box-shadow: 8px 8px 16px #e2e8f0, -8px -8px 16px #ffffff;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-neumorphic:active {
+  box-shadow: inset 4px 4px 8px #cbd5e1, inset -4px -4px 8px #ffffff;
+  transform: scale(0.98);
+}
+
+.btn-neumorphic-primary {
+  background: #0066ff;
+  box-shadow: 6px 6px 15px rgba(0, 102, 255, 0.3), -4px -4px 10px rgba(255, 255, 255, 0.5);
+  color: white;
+}
+
+.btn-neumorphic-primary:active {
+  box-shadow: inset 4px 4px 8px rgba(0, 0, 0, 0.2);
+  transform: scale(0.98);
+}
+
+.btn-accent {
+  background: #F3CE6E;
+  color: #1e293b;
+  box-shadow: 6px 6px 15px rgba(243, 206, 110, 0.3), -4px -4px 10px rgba(255, 255, 255, 0.5);
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  transition: all 0.3s ease;
+}
+
+.btn-accent:hover {
+  background: #ffc93e;
+  transform: translateY(-2px);
+  box-shadow: 8px 8px 20px rgba(243, 206, 110, 0.4);
+}
+
+.text-accent {
+  color: #F3CE6E;
+}
+
+.bg-accent {
+  background-color: #F3CE6E;
+}
+
+.border-accent {
+  border-color: #F3CE6E;
+}
+
+/* ── Scrollbar ───────────────────────────────── */
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 102, 255, 0.1);
+  border-radius: 20px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 102, 255, 0.2);
+  background-clip: content-box;
+}
+
+/* ── Status Indicators ─────────────────────── */
+.status-dot-animated {
+  display: inline-flex;
+  width: 8px;
+  height: 8px;
+  background-color: #10b981;
+  border-radius: 50%;
+  position: relative;
+}
+
+.status-dot-animated::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background-color: inherit;
+  animation: pulse-dot 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+@keyframes pulse-dot {
+  0% { transform: scale(1); opacity: 0.8; }
+  100% { transform: scale(3.5); opacity: 0; }
+}
+
+/* ── Transitions ────────────────────────────── */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.5s ease-out forwards;
+}
