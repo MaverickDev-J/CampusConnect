@@ -26,6 +26,8 @@ import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 
+export const dynamic = "force-dynamic";
+
 export default function ClassroomChatPage({ params }: { params: Promise<{ id: string }> }) {
     const { id: classroomId } = use(params);
     const { user, isDemo } = useAuth();

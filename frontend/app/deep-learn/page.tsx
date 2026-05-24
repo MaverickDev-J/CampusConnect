@@ -23,6 +23,8 @@ import { useChat, type ChatMessage, type SourceRef } from "@/app/hooks/useChat";
 import { useFiles, type FileMetadata } from "@/app/hooks/useFiles";
 import { useAuth } from "@/app/context/auth-context";
 
+export const dynamic = "force-dynamic";
+
 // ── View States ─────────────────────────────────────────────────
 type View = "sessions" | "file-select" | "chat";
 

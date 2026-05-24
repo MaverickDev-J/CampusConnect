@@ -95,6 +95,8 @@ const mapFiltersToApi = (selected: Record<string, string[]>) => {
     return filters;
 };
 
+export const dynamic = "force-dynamic";
+
 export default function DeepBasePage() {
     const { user } = useAuth();
     const [activeTab, setActiveTab] = useState<"all" | "notebook">("all");

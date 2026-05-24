@@ -20,6 +20,8 @@ import {
 
 import { ClassroomCard } from "@/app/components/ClassroomCard";
 
+export const dynamic = "force-dynamic";
+
 // ── Smart Root Page ─────────────────────────────────────────────────
 // Unauthenticated users → landing page
 // Authenticated users → dashboard

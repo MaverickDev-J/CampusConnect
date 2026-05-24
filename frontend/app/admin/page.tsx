@@ -27,6 +27,8 @@ interface ManagedUser {
     role: string;
 }
 
+export const dynamic = "force-dynamic";
+
 export default function AdminPage() {
     const { user } = useAuth();
     const [users, setUsers] = useState<ManagedUser[]>([]);

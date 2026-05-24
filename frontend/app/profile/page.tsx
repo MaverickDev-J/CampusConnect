@@ -23,6 +23,8 @@ import {
 import Link from "next/link";
 import { useState, useEffect } from "react";
 
+export const dynamic = "force-dynamic";
+
 export default function ProfilePage() {
     const { user, updateProfile, changePassword } = useAuth();
     const { classrooms } = useClassrooms();

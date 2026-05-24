@@ -38,6 +38,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Sidebar } from "@/app/components/Sidebar";
 import { useClassroomSocket } from "@/app/hooks/useClassroomSocket";
 
+export const dynamic = "force-dynamic";
+
 export default function ClassroomPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
     const { user } = useAuth();

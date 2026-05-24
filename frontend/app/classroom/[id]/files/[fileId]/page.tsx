@@ -17,6 +17,8 @@ import {
 import Link from "next/link";
 import { motion } from "framer-motion";
 
+export const dynamic = "force-dynamic";
+
 export default function FileViewerPage({ params }: { params: Promise<{ id: string; fileId: string }> }) {
     const { id: classroomId, fileId } = use(params);
     const { user } = useAuth();

@@ -18,6 +18,8 @@ import {
 } from "lucide-react";
 import confetti from "canvas-confetti";
 
+export const dynamic = "force-dynamic";
+
 export default function ClassroomsPage() {
     const { user } = useAuth();
     const { classrooms, loading, createClassroom, joinClassroom } = useClassrooms();

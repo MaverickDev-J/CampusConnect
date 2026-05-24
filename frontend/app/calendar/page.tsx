@@ -21,6 +21,8 @@ import { API_BASE_URL } from "@/app/config";
 import { useClassrooms } from "@/app/hooks/useClassrooms";
 import { useClassroomSocket } from "@/app/hooks/useClassroomSocket";
 
+export const dynamic = "force-dynamic";
+
 export default function CalendarPage() {
     const { user } = useAuth();
     const { classrooms } = useClassrooms();
