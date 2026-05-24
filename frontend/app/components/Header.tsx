@@ -5,12 +5,12 @@ import { useAuth } from "@/app/context/auth-context";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import { Megaphone, Calendar as CalendarIcon, Loader2 as LoaderIcon } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { API_BASE_URL } from "@/app/config";
 
-export default function Header() {
+function HeaderInner() {
     const { user, logout, isDemo } = useAuth();
     const pathname = usePathname();
     const router = useRouter();
@@ -265,5 +265,13 @@ export default function Header() {
                 </div>
             </div>
         </header>
+    );
+}
+
+export default function Header() {
+    return (
+        <Suspense fallback={<header className="relative z-40 flex items-center justify-between px-8 h-24 bg-transparent" />}>
+            <HeaderInner />
+        </Suspense>
     );
 }
