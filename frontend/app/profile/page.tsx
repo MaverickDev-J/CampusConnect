@@ -119,7 +119,7 @@ export default function ProfilePage() {
     return (
         <div className="flex min-h-screen bg-slate-50">
             <Sidebar />
-            <main className="flex-1 ml-20 lg:ml-64 transition-all duration-300 relative overflow-hidden text-slate-900">
+            <main className="flex-1 transition-all duration-300 relative overflow-hidden text-slate-900">
                 {/* Background Brand Glows */}
                 <div className="fixed inset-0 pointer-events-none">
                     <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-yellow-400/5 blur-[120px] rounded-full" />

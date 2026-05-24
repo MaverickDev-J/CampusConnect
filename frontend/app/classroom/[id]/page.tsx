@@ -50,6 +50,7 @@ export default function ClassroomPage({ params }: { params: Promise<{ id: string
     const [uploadProgress, setUploadProgress] = useState<{ name: string; percent: number } | null>(null);
     const [successToast, setSuccessToast] = useState<string | null>(null);
     const [upcomingEvent, setUpcomingEvent] = useState<any>(null);
+    const [processingSteps, setProcessingSteps] = useState<Record<string, string>>({});
 
     const fetchClassroomEvents = useCallback(async () => {
         if (!user?.token) return;
@@ -91,6 +92,10 @@ export default function ClassroomPage({ params }: { params: Promise<{ id: string
                 setSuccessToast(`Material processed and ready!`);
                 setTimeout(() => setSuccessToast(null), 5000);
             }
+        }
+
+        if (msg.type === "file_status") {
+            setProcessingSteps(prev => ({ ...prev, [msg.file_id]: msg.step }));
         }
     }, [refreshAnnouncements]);
 
@@ -205,7 +210,7 @@ export default function ClassroomPage({ params }: { params: Promise<{ id: string
         <div className="flex min-h-screen">
             <Sidebar />
 
-            <main className="flex-1 ml-20 lg:ml-64 transition-all duration-300 relative min-h-screen flex flex-col overflow-hidden">
+            <main className="flex-1 transition-all duration-300 relative min-h-screen flex flex-col overflow-hidden">
                 {/* Background Brand Glows */}
                 <div className="fixed inset-0 pointer-events-none">
                     <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-amber-400/5 blur-[120px] rounded-full" />
@@ -503,7 +508,9 @@ export default function ClassroomPage({ params }: { params: Promise<{ id: string
                                                                     {(ann.file.processing?.status === "pending" || ann.file.processing?.status === "processing") && (
                                                                         <div className="px-3 py-1 rounded-full bg-amber-50 text-amber-600 border border-amber-100 flex items-center gap-2">
                                                                             <Loader2 size={12} className="animate-spin" />
-                                                                            <span className="text-[9px] font-black uppercase tracking-widest animate-pulse">AI is Reading File...</span>
+                                                                            <span className="text-[9px] font-black uppercase tracking-widest animate-pulse">
+                                                                                {processingSteps[ann.file.file_id] || "AI is Reading File..."}
+                                                                            </span>
                                                                         </div>
                                                                     )}
                                                                     {ann.file.processing?.status === "failed" && (

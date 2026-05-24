@@ -19,10 +19,138 @@ from api.agent.nodes import synthesis_node_stream
 from api.dependencies import get_current_user
 from database.mongo import get_db
 from database.redis import get_redis
+from core.semantic_cache import check_semantic_cache, store_in_semantic_cache
+from core.llm_router import chat_key_manager
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/chat", tags=["Chat"])
+
+
+# ── GET /api/chat/quick-prompts ─────────────────────────────────────
+
+@router.get("/quick-prompts")
+async def get_quick_prompts(
+    classroom_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    Generate dynamic quick-prompt suggestions based on actual classroom content.
+    Returns up to 4 contextual study questions derived from uploaded materials.
+    Results are cached in Redis for 1 hour per classroom.
+    """
+    db = get_db()
+    redis = get_redis()
+
+    # 1. Check cache first
+    cache_key = f"quick_prompts:{classroom_id}"
+    if redis:
+        try:
+            cached = await redis.get(cache_key)
+            if cached:
+                return _json.loads(cached)
+        except Exception:
+            pass
+
+    # 2. Check if classroom has any completed files
+    file_count = await db.file_metadata.count_documents({
+        "classroom_id": classroom_id,
+        "processing.status": "completed",
+    })
+    if file_count == 0:
+        return {"prompts": []}
+
+    # 3. Sample some chunk texts from ChromaDB
+    try:
+        from database.chroma import get_chroma_collection
+        collection = get_chroma_collection()
+        if collection is None:
+            return {"prompts": []}
+
+        # Get a sample of documents from this classroom
+        results = collection.get(
+            where={"classroom_id": classroom_id},
+            limit=8,
+            include=["documents", "metadatas"],
+        )
+
+        if not results or not results.get("documents"):
+            return {"prompts": []}
+
+        # Build context from chunks + file names
+        chunks = results["documents"][:8]
+        file_names = list({
+            m.get("file_name", "Unknown")
+            for m in (results.get("metadatas") or [])
+            if m
+        })
+        context_snippet = "\n---\n".join(chunks[:6])  # Use first 6 chunks
+
+    except Exception as e:
+        logger.warning("[quick-prompts] ChromaDB sampling failed: %s", e)
+        return {"prompts": []}
+
+    # 4. Ask Gemini to generate contextual questions
+    try:
+        from core.llm_router import call_gemini_with_fallback, ROUTER_MODEL_CHAIN
+
+        prompt = (
+            "You are generating study question suggestions for students. "
+            "Based on the following document excerpts from their classroom materials, "
+            "generate exactly 4 short, specific study questions.\n\n"
+            f"Files in this classroom: {', '.join(file_names)}\n\n"
+            f"Content excerpts:\n{context_snippet[:3000]}\n\n"
+            "Rules:\n"
+            "- Each question must be 3-8 words (very short, like a button label)\n"
+            "- Questions should cover DIFFERENT topics from the material\n"
+            "- Make them specific to the actual content, not generic\n"
+            "- Output ONLY a JSON array of 4 objects with 'text' and 'prompt' keys\n"
+            "- 'text' is the short button label, 'prompt' is the full question (1-2 sentences)\n\n"
+            'Example output:\n'
+            '[{"text":"Explain normalization","prompt":"Explain the different normal forms in database normalization with examples."},'
+            '{"text":"SQL vs NoSQL","prompt":"Compare SQL and NoSQL databases. When should each be used?"},'
+            '{"text":"ER diagram basics","prompt":"What are the key components of an ER diagram and how do you design one?"},'
+            '{"text":"ACID properties","prompt":"Explain the ACID properties in database transactions with real-world examples."}]\n\n'
+            "Output ONLY the JSON array, no markdown, no explanation."
+        )
+
+        response = await call_gemini_with_fallback(
+            model_chain=ROUTER_MODEL_CHAIN,
+            contents=[prompt],
+        )
+
+        # Parse the JSON response
+        raw = response.text.strip()
+        # Strip markdown code fences if present
+        if raw.startswith("```"):
+            raw = raw.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+
+        prompts_data = _json.loads(raw)
+
+        # Add icons
+        icons = ["📚", "🧠", "🔍", "💡"]
+        result_prompts = []
+        for i, p in enumerate(prompts_data[:4]):
+            result_prompts.append({
+                "icon": icons[i % len(icons)],
+                "text": p.get("text", ""),
+                "prompt": p.get("prompt", ""),
+            })
+
+        result = {"prompts": result_prompts}
+
+        # 5. Cache for 1 hour
+        if redis:
+            try:
+                await redis.set(cache_key, _json.dumps(result), ex=3600)
+            except Exception:
+                pass
+
+        return result
+
+    except Exception as e:
+        logger.warning("[quick-prompts] Gemini generation failed: %s", e)
+        return {"prompts": []}
 
 
 # ── Helpers ─────────────────────────────────────────────────────────
@@ -201,7 +329,7 @@ async def chat_message(
         try:
             cached = await redis_client.get(cache_key)
             if cached:
-                logger.info("[chat_message] Cache HIT")
+                logger.info("[chat_message] Exact-match cache HIT")
                 data = _json.loads(cached)
                 yield _sse("status", "Retrieved from cache...")
                 for token in data["content"].split(" "):
@@ -212,6 +340,37 @@ async def chat_message(
                 return
         except Exception as ce:
             logger.warning("[chat_message] Cache lookup failed: %s", ce)
+
+        # ── Semantic cache check ────────────────────────────────────
+        # Embed the query now so we can check for semantically similar
+        # cached queries (e.g. "What is F=ma" ≈ "Explain Newton's 2nd law").
+        # If the semantic cache hits, we skip the entire LangGraph pipeline.
+        query_embedding = None
+        try:
+            embed_client, _ = chat_key_manager.get_client()
+            embed_result = await embed_client.aio.models.embed_content(
+                model="models/gemini-embedding-001",
+                contents=query,
+                config={"task_type": "RETRIEVAL_QUERY"},
+            )
+            query_embedding = list(embed_result.embeddings[0].values)
+        except Exception as ee:
+            logger.warning("[chat_message] Pre-embed for semantic cache failed: %s", ee)
+
+        if query_embedding:
+            sem_hit = await check_semantic_cache(
+                query_embedding=query_embedding,
+                classroom_id=initial_state.get("scope_classroom_id") or "global",
+            )
+            if sem_hit:
+                logger.info("[chat_message] Semantic cache HIT (score=%.4f)", sem_hit.get("cache_score", 0))
+                yield _sse("status", "Found similar question in cache...")
+                for token in sem_hit["content"].split(" "):
+                    yield _sse("token", token + " ")
+                    await asyncio.sleep(0.005)
+                yield _sse("sources", sem_hit.get("sources", []))
+                yield _sse("done", "")
+                return
 
         try:
             # ── Run the LangGraph (entry → router → [branch] → END) ──
@@ -318,7 +477,21 @@ async def chat_message(
                         _json.dumps({"content": full_response, "sources": used_sources}),
                     )
                 except Exception as ce:
-                    logger.warning("[chat_message] Cache write failed: %s", ce)
+                    logger.warning("[chat_message] Exact cache write failed: %s", ce)
+
+                # Also store in semantic cache for fuzzy matching
+                embedding_to_store = (
+                    query_embedding
+                    or final_state.get("query_embedding")
+                )
+                if embedding_to_store:
+                    await store_in_semantic_cache(
+                        query_text=query,
+                        query_embedding=embedding_to_store,
+                        response_content=full_response,
+                        sources=used_sources,
+                        classroom_id=initial_state.get("scope_classroom_id") or "global",
+                    )
 
             # ── Step 5: Emit used_sources + done ───────────────────
             yield _sse("sources", used_sources)

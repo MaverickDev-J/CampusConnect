@@ -231,3 +231,22 @@ export async function apiJoinClassroom(token: string, join_code: string): Promis
     }
     return res.json();
 }
+
+/**
+ * POST /api/auth/demo-login
+ * Frictionless demo login — no credentials needed.
+ * Seeds demo environment on first call, returns JWT instantly.
+ */
+export async function apiDemoLogin(): Promise<AuthResponse> {
+    const res = await fetch(`${API_BASE_URL}/auth/demo-login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+    });
+
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || "Demo login failed");
+    }
+    return res.json();
+}
+

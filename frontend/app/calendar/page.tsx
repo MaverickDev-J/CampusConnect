@@ -199,7 +199,7 @@ export default function CalendarPage() {
                 <div className="absolute bottom-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/5 blur-[120px] rounded-full" />
             </div>
             <Sidebar />
-            <main className="flex-1 ml-20 lg:ml-64 transition-all duration-300 relative">
+            <main className="flex-1 transition-all duration-300 relative">
                 <Header />
                 
                 <div className="max-w-7xl mx-auto px-6 py-10">

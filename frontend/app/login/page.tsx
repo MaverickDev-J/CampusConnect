@@ -1,17 +1,18 @@
 "use client";
 
 import { useState, useEffect, type FormEvent } from "react";
-import { Link2, ShieldCheck, Mail, Lock, Loader2, ArrowRight } from "lucide-react";
+import { Link2, ShieldCheck, Mail, Lock, Loader2, ArrowRight, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/app/context/auth-context";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 
 export default function LoginPage() {
-    const { login, loading, error, clearError, user } = useAuth();
+    const { login, demoLogin, loading, error, clearError, user } = useAuth();
     const router = useRouter();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const [demoLoading, setDemoLoading] = useState(false);
 
     useEffect(() => {
         if (user) router.push("/");
@@ -21,6 +22,18 @@ export default function LoginPage() {
         e.preventDefault();
         clearError();
         await login(email, password);
+    };
+
+    const handleDemoLogin = async () => {
+        setDemoLoading(true);
+        clearError();
+        try {
+            await demoLogin();
+        } catch {
+            // Error handled by context
+        } finally {
+            setDemoLoading(false);
+        }
     };
 
     return (
@@ -103,6 +116,31 @@ export default function LoginPage() {
                             )}
                         </button>
                     </form>
+
+                    {/* Demo Login Divider + Button */}
+                    <div className="relative z-10 mt-6">
+                        <div className="relative flex items-center my-5">
+                            <div className="flex-1 border-t border-slate-100" />
+                            <span className="px-4 text-[10px] font-black text-slate-300 uppercase tracking-[0.25em]">
+                                or explore instantly
+                            </span>
+                            <div className="flex-1 border-t border-slate-100" />
+                        </div>
+
+                        <button
+                            type="button"
+                            onClick={handleDemoLogin}
+                            disabled={demoLoading}
+                            className="w-full py-4 rounded-3xl border-2 border-dashed border-amber-200 bg-gradient-to-r from-amber-50/50 to-orange-50/50 hover:border-amber-400 hover:shadow-lg hover:shadow-amber-100/50 active:scale-[0.98] transition-all duration-300 flex items-center justify-center gap-3 text-xs font-black uppercase tracking-[0.15em] text-amber-700 disabled:opacity-50"
+                        >
+                            {demoLoading ? (
+                                <Loader2 className="animate-spin" size={18} />
+                            ) : (
+                                <Sparkles size={18} />
+                            )}
+                            Try Live Demo — No Sign Up
+                        </button>
+                    </div>
                 </div>
 
                 <p className="text-center mt-12 text-slate-400 text-sm font-bold">

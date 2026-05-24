@@ -11,7 +11,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { API_BASE_URL } from "@/app/config";
 
 export default function Header() {
-    const { user, logout } = useAuth();
+    const { user, logout, isDemo } = useAuth();
     const pathname = usePathname();
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -90,7 +90,7 @@ export default function Header() {
         : "CC";
 
     return (
-        <header className="relative z-40 flex items-center justify-between px-8 h-24 sticky top-0 transition-all">
+        <header className="relative z-40 flex items-center justify-between px-8 h-24 transition-all bg-transparent">
             <div className="flex-shrink-0 flex items-center gap-4">
                 <h1 className="text-2xl font-black text-slate-900 tracking-tighter">
                     {pathname === "/" ? "Dashboard" : "Classroom"}
@@ -211,7 +211,7 @@ export default function Header() {
                 <div className="relative flex items-center gap-3 pl-2 border-l border-slate-200">
                     <div className="text-right hidden sm:block">
                         <div className="text-sm font-black text-slate-900 leading-none">{user?.name}</div>
-                        <div className="text-[10px] text-amber-600 font-black uppercase tracking-widest mt-1 opacity-70 border-b border-amber-600/20 pb-0.5">{user?.role}</div>
+                        <div className="text-[10px] text-amber-600 font-black uppercase tracking-widest mt-1 opacity-70 border-b border-amber-600/20 pb-0.5">{isDemo ? "Demo Guest" : user?.role}</div>
                     </div>
                     <div 
                         onClick={() => setShowProfileMenu(!showProfileMenu)}
@@ -235,7 +235,7 @@ export default function Header() {
                                     <div className="text-sm font-black text-slate-900 leading-none mb-1">{user?.name}</div>
                                     <div className="text-[11px] text-slate-400 font-medium truncate">{user?.email}</div>
                                     <div className="mt-3 inline-flex px-2 py-0.5 rounded-lg bg-primary/10 text-primary text-[9px] font-black uppercase tracking-wider">
-                                        {user?.role}
+                                        {isDemo ? "Demo Guest" : user?.role}
                                     </div>
                                 </div>
                                 <div className="space-y-1">

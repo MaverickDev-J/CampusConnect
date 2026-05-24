@@ -256,6 +256,12 @@ async def _process_file_async(file_id: str) -> None:
 
     try:
         # 3. Extract text (3-tier cascade)
+        await manager.publish_update(classroom_id, {
+            "type": "file_status",
+            "file_id": file_id,
+            "status": "processing",
+            "step": "Extracting text with AI..."
+        })
         logger.info("[ingestion] Starting extraction for %s (%s)", original_name, file_type)
         t_start = time.time()
         full_text, extraction_method = await _extract_text_tiered(storage_path, file_type)
@@ -267,6 +273,12 @@ async def _process_file_async(file_id: str) -> None:
             raise RuntimeError("Extraction returned empty text")
 
         # 4. Chunk
+        await manager.publish_update(classroom_id, {
+            "type": "file_status",
+            "file_id": file_id,
+            "status": "processing",
+            "step": "Splitting document into chunks..."
+        })
         splitter = RecursiveCharacterTextSplitter(
             chunk_size=CHUNK_SIZE,
             chunk_overlap=CHUNK_OVERLAP,
@@ -286,6 +298,12 @@ async def _process_file_async(file_id: str) -> None:
         logger.info("[ingestion] Produced %d chunks", len(chunk_records))
 
         # 5. Embed — use INGESTION key pool with retry backoff
+        await manager.publish_update(classroom_id, {
+            "type": "file_status",
+            "file_id": file_id,
+            "status": "processing",
+            "step": "Generating vector embeddings..."
+        })
         logger.info("[ingestion] Embedding %d chunks...", len(chunk_records))
         all_embeddings: list[list[float]] = []
 
@@ -324,6 +342,12 @@ async def _process_file_async(file_id: str) -> None:
             )
 
         # 6. Store in ChromaDB
+        await manager.publish_update(classroom_id, {
+            "type": "file_status",
+            "file_id": file_id,
+            "status": "processing",
+            "step": "Saving to Vector Database..."
+        })
         logger.info("[ingestion] Storing %d vectors in ChromaDB...", len(chunk_records))
         metadatas = [
             {
@@ -421,15 +445,10 @@ def process_file_task(file_id: str):
     """
     Celery entry point. Bridges to the async processing logic.
     Retries up to 3x with exponential backoff on failure.
-    """
-    async def _run():
-        from database.mongo import connect_db, close_db
-        from database.chroma import connect_chroma
-        await connect_db()
-        connect_chroma()
-        try:
-            await _process_file_async(file_id)
-        finally:
-            await close_db()
 
-    asyncio.run(_run())
+    Uses the persistent event loop from celery_app to avoid
+    'Event loop is closed' errors with Motor (async MongoDB).
+    """
+    from core.celery_app import get_worker_loop
+    loop = get_worker_loop()
+    loop.run_until_complete(_process_file_async(file_id))

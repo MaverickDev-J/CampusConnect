@@ -33,7 +33,7 @@ async def create_event(
         "classroom_id": body.classroom_id,
         "type": body.type,
         "created_by": current_user["user_id"],
-        "created_at": datetime.utcnow()
+        "created_at": datetime.now(timezone.utc)
     }
     
     await db.calendar_events.insert_one(event_doc)
@@ -121,25 +121,43 @@ async def list_events(
     cursor = db.calendar_events.find(query, {"_id": 0}).sort("date", 1)
     events = await cursor.to_list(100)
     
-    # Enrich events
+    # Enrich events — batch fetch creators and classrooms to avoid N+1 queries.
+    # Instead of querying MongoDB once per event (200 events = 200 round trips),
+    # we collect all unique IDs and fetch them in 2 bulk queries.
+    creator_ids = list(set(e.get("created_by") for e in events if e.get("created_by")))
+    classroom_ids = list(set(e.get("classroom_id") for e in events if e.get("classroom_id")))
+
+    # Batch lookup: creators
+    creators_map = {}
+    if creator_ids:
+        creator_docs = await db.users.find(
+            {"user_id": {"$in": creator_ids}}, {"user_id": 1, "name": 1}
+        ).to_list(None)
+        creators_map = {c["user_id"]: c["name"] for c in creator_docs}
+
+    # Batch lookup: classrooms
+    classrooms_map = {}
+    if classroom_ids:
+        cls_docs = await db.classrooms.find(
+            {"classroom_id": {"$in": classroom_ids}}, {"classroom_id": 1, "name": 1, "subject": 1}
+        ).to_list(None)
+        classrooms_map = {c["classroom_id"]: c for c in cls_docs}
+
+    # Enrich
     enriched_events = []
     for event in events:
-        # Get creator name
-        creator = await db.users.find_one({"user_id": event.get("created_by")}, {"name": 1})
-        event["creator_name"] = creator["name"] if creator else "Unknown"
-        
-        # Get classroom/subject info
-        if event.get("classroom_id"):
-            cls = await db.classrooms.find_one({"classroom_id": event["classroom_id"]}, {"name": 1, "subject": 1})
-            if cls:
-                event["classroom_name"] = cls["name"]
-                event["subject"] = cls.get("subject", "N/A")
-        else:
+        event["creator_name"] = creators_map.get(event.get("created_by"), "Unknown")
+
+        cid = event.get("classroom_id")
+        if cid and cid in classrooms_map:
+            event["classroom_name"] = classrooms_map[cid]["name"]
+            event["subject"] = classrooms_map[cid].get("subject", "N/A")
+        elif not cid:
             event["classroom_name"] = "Global"
             event["subject"] = "General"
-            
+
         enriched_events.append(event)
-        
+
     return {"events": enriched_events}
 
 @router.delete("/events/{event_id}", status_code=status.HTTP_200_OK)

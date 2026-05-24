@@ -59,10 +59,11 @@ async def get_user_from_token(token: str) -> dict:
 
     user["_id"] = str(user["_id"])  # ObjectId → str for JSON serialization
 
-    # ── Write back to Redis cache ──────────────────────────────────
+    # ── Write back to Redis cache (exclude password hash for security) ─
     try:
         redis = await get_redis()
-        await redis.setex(cache_key, _USER_CACHE_TTL, json.dumps(user, default=str))
+        cache_doc = {k: v for k, v in user.items() if k != "password"}
+        await redis.setex(cache_key, _USER_CACHE_TTL, json.dumps(cache_doc, default=str))
     except Exception as e:
         logger.warning("[get_current_user] Failed to cache user in Redis: %s", e)
 
@@ -80,14 +81,15 @@ def invalidate_user_cache(user_id: str):
         try:
             redis = await get_redis()
             await redis.delete(f"user_cache:{user_id}")
-        except Exception:
-            pass
+            logger.debug("[cache] Invalidated user_cache:%s", user_id)
+        except Exception as e:
+            logger.warning("[cache] Failed to invalidate user_cache:%s: %s", user_id, e)
 
     try:
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            asyncio.create_task(_delete())
-    except Exception:
+        loop = asyncio.get_running_loop()
+        loop.create_task(_delete())
+    except RuntimeError:
+        # No running event loop (e.g., called from sync code) — skip
         pass
 
 

@@ -1,0 +1,133 @@
+# ══════════════════════════════════════════════════════════════
+# CampusConnect — Production Docker Compose
+# ══════════════════════════════════════════════════════════════
+# Usage:
+#   1. Create .env file from backend/.env.example
+#   2. Set MONGO_URI to your MongoDB Atlas connection string
+#   3. docker compose -f docker-compose.prod.yml up -d --build
+#
+# Services: nginx, frontend, backend, celery-worker, flower,
+#           redis, chromadb
+# MongoDB: Use MongoDB Atlas (external, not in this compose)
+# ══════════════════════════════════════════════════════════════
+
+services:
+  # ── Edge: Nginx Reverse Proxy ───────────────────────────────
+  nginx:
+    build: ./nginx
+    container_name: cc_nginx
+    ports:
+      - "80:80"
+    volumes:
+      - upload_storage:/static
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ── Frontend: Next.js ───────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_API_URL: ${CORS_ORIGIN:-http://localhost}/api
+    container_name: cc_frontend
+    environment:
+      - NODE_ENV=production
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ── Backend: FastAPI + Gunicorn ─────────────────────────────
+  backend:
+    build: ./backend
+    container_name: cc_backend
+    env_file: ./backend/.env
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - CHROMA_HOST=chromadb
+      - CHROMA_PORT=8000
+    volumes:
+      - upload_storage:/app/storage
+    depends_on:
+      redis:
+        condition: service_healthy
+      chromadb:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ── Celery Worker ───────────────────────────────────────────
+  celery-worker:
+    build: ./backend
+    container_name: cc_celery_worker
+    command: celery -A core.celery_app worker --loglevel=info -P solo
+    env_file: ./backend/.env
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - CHROMA_HOST=chromadb
+      - CHROMA_PORT=8000
+    volumes:
+      - upload_storage:/app/storage
+    depends_on:
+      redis:
+        condition: service_healthy
+      chromadb:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ── Flower: Celery Monitoring Dashboard ─────────────────────
+  flower:
+    build: ./backend
+    container_name: cc_flower
+    command: celery -A core.celery_app flower --port=5555 --url_prefix=flower
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ── Redis Stack ─────────────────────────────────────────────
+  redis:
+    image: redis/redis-stack-server:latest
+    container_name: cc_redis
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── ChromaDB Server ─────────────────────────────────────────
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: cc_chromadb
+    volumes:
+      - chroma_data:/chroma/chroma
+    environment:
+      ANONYMIZED_TELEMETRY: "false"
+      IS_PERSISTENT: "TRUE"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  upload_storage:
+    driver: local
+  redis_data:
+    driver: local
+  chroma_data:
+    driver: local

@@ -16,6 +16,7 @@ import {
     apiUpdateProfile,
     apiChangePassword,
     apiLogout,
+    apiDemoLogin,
     type UserProfile,
 } from "@/app/lib/api";
 
@@ -29,6 +30,7 @@ interface AuthContextType {
     user: User | null;
     loading: boolean;
     error: string | null;
+    isDemo: boolean;
     login: (email: string, password: string) => Promise<void>;
     signup: (
         name: string,
@@ -36,6 +38,7 @@ interface AuthContextType {
         password: string,
         profileData?: { roll_no?: string }
     ) => Promise<void>;
+    demoLogin: () => Promise<void>;
     logout: () => void;
     updateProfile: (name: string) => Promise<void>;
     changePassword: (data: any) => Promise<void>;
@@ -157,6 +160,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         [router]
     );
 
+    // ── Demo Login ───────────────────────────────────────────
+    const demoLogin = useCallback(
+        async () => {
+            setError(null);
+            setLoading(true);
+            try {
+                const { access_token } = await apiDemoLogin();
+                setAuthCookie(access_token);
+                const profile = await apiGetProfile(access_token);
+                setUser({ ...profile, token: access_token });
+                router.push("/");
+            } catch (err) {
+                setError(err instanceof Error ? err.message : "Demo login failed");
+                throw err;
+            } finally {
+                setLoading(false);
+            }
+        },
+        [router]
+    );
+
     // ── Logout ──────────────────────────────────────────────
     const logout = useCallback(() => {
         if (user?.token) {
@@ -199,14 +223,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // ── Clear error ─────────────────────────────────────────
     const clearError = useCallback(() => setError(null), []);
 
+    // ── Demo detection ──────────────────────────────────────
+    const isDemo = user?.user_id === "stu_demo_guest";
+
     return (
         <AuthContext.Provider
             value={{ 
                 user, 
                 loading, 
                 error, 
+                isDemo,
                 login, 
                 signup, 
+                demoLogin,
                 logout, 
                 updateProfile, 
                 changePassword, 

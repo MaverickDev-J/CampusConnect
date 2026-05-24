@@ -99,11 +99,17 @@ class GeminiKeyManager:
                 key = self.keys[idx]
                 return genai.Client(api_key=key), key
 
-        # All keys in penalty box — back off and retry
-        wait = 5
-        logger.warning("[%s pool] All keys in penalty box. Sleeping %ds...", self.pool_name, wait)
-        time.sleep(wait)
-        return self.get_client()
+        # All keys in penalty box — clear the earliest penalty and return that key.
+        # IMPORTANT: We do NOT call time.sleep() here because this may be called
+        # from an async context (FastAPI), where blocking would freeze the event loop.
+        earliest_idx = min(self._unhealthy, key=self._unhealthy.get)
+        logger.warning(
+            "[%s pool] All %d keys in penalty box. Force-releasing key index %d.",
+            self.pool_name, len(self.keys), earliest_idx,
+        )
+        del self._unhealthy[earliest_idx]
+        key = self.keys[earliest_idx]
+        return genai.Client(api_key=key), key
 
     def mark_unhealthy(self, key: str, duration: int = 60) -> None:
         """Put a key in the penalty box for `duration` seconds."""

@@ -66,7 +66,7 @@ export default function FileViewerPage({ params }: { params: Promise<{ id: strin
                 </div>
                 <div className="flex items-center gap-2">
                     <a 
-                        href={`http://localhost:8000/api/files/${fileId}/download`}
+                        href={`${API_BASE_URL}/api/files/${fileId}/download?token=${user?.token}`}
                         className="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 font-black text-xs transition"
                     >
                         <Download size={16} /> Download
@@ -80,13 +80,13 @@ export default function FileViewerPage({ params }: { params: Promise<{ id: strin
             }`}>
                 {fileData.file_type === "pdf" ? (
                     <iframe 
-                        src={`http://localhost:8000${fileData.playback_url}#toolbar=0`}
+                        src={`${API_BASE_URL}${fileData.playback_url}#toolbar=0`}
                         className="w-full h-[calc(100vh-64px)] border-none bg-white"
                         title={fileData.original_name}
                     />
                 ) : fileData.file_type === "image" ? (
                     <img 
-                        src={`http://localhost:8000${fileData.playback_url}`}
+                        src={`${API_BASE_URL}${fileData.playback_url}`}
                         alt={fileData.original_name}
                         className="max-w-full max-h-[85vh] object-contain shadow-2xl"
                     />
@@ -95,7 +95,7 @@ export default function FileViewerPage({ params }: { params: Promise<{ id: strin
                         <FileText size={48} className="mx-auto mb-4 text-slate-700" />
                         <p className="font-bold text-slate-300">Preview not available for this file type.</p>
                         <a 
-                            href={`http://localhost:8000/api/files/${fileId}/download`}
+                            href={`${API_BASE_URL}/api/files/${fileId}/download?token=${user?.token}`}
                             className="text-indigo-400 mt-4 inline-block hover:underline font-bold"
                         >
                             Download to view locally

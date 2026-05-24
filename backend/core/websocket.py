@@ -49,26 +49,38 @@ class ConnectionManager:
                     pass
 
     async def listen_to_redis(self):
-        """Background task to listen for broadcast messages from Redis (e.g., from Celery)."""
-        redis_client = await get_redis()
-        pubsub = redis_client.pubsub()
-        await pubsub.subscribe("classroom_updates")
-        
-        logger.info("WebSocket Manager started listening to Redis PubSub 'classroom_updates'")
-        
-        try:
-            async for message in pubsub.listen():
-                if message["type"] == "message":
-                    data = json.loads(message["data"])
-                    classroom_id = data.get("classroom_id")
-                    payload = data.get("payload")
-                    if classroom_id and payload:
-                        logger.info(f"[REDIS] Broadcasting: {payload['type']} to {classroom_id}")
-                        await self.broadcast_to_classroom(classroom_id, payload)
-        except Exception as e:
-            logger.error(f"[REDIS] PubSub listener error: {e}")
-        finally:
-            await pubsub.unsubscribe("classroom_updates")
+        """
+        Background task to listen for broadcast messages from Redis PubSub.
+        Auto-reconnects on failure with exponential backoff (max 30s).
+        Without this, a single Redis blip would permanently kill real-time updates.
+        """
+        backoff = 1
+        while True:
+            try:
+                redis_client = await get_redis()
+                pubsub = redis_client.pubsub()
+                await pubsub.subscribe("classroom_updates")
+                logger.info("WebSocket Manager started listening to Redis PubSub 'classroom_updates'")
+                backoff = 1  # Reset backoff on successful connection
+
+                async for message in pubsub.listen():
+                    if message["type"] == "message":
+                        data = json.loads(message["data"])
+                        classroom_id = data.get("classroom_id")
+                        payload = data.get("payload")
+                        if classroom_id and payload:
+                            logger.info(f"[REDIS] Broadcasting: {payload['type']} to {classroom_id}")
+                            await self.broadcast_to_classroom(classroom_id, payload)
+
+            except Exception as e:
+                logger.error(f"[REDIS] PubSub listener error: {e} — reconnecting in {backoff}s")
+                await asyncio.sleep(backoff)
+                backoff = min(backoff * 2, 30)  # Exponential backoff, cap at 30s
+            finally:
+                try:
+                    await pubsub.unsubscribe("classroom_updates")
+                except Exception:
+                    pass
 
     async def publish_update(self, classroom_id: str, payload: dict):
         """Utility to publish an update to Redis (accessible from any process)."""

@@ -16,12 +16,13 @@ from fastapi import (
     Form,
     HTTPException,
     Query,
+    Request,
     UploadFile,
     status,
 )
 from fastapi.responses import FileResponse
 
-from api.dependencies import get_current_user, require_classroom_member
+from api.dependencies import get_current_user, get_user_from_token, require_classroom_member
 from database.mongo import get_db
 
 router = APIRouter(prefix="/api/upload", tags=["Upload"])
@@ -79,7 +80,10 @@ async def upload_file(
 
     # ① Permission gate — only teachers and superadmins can upload
     if role not in ("teacher", "superadmin"):
-        raise HTTPException(status_code=403, detail="Only teachers can upload files")
+        # Allow demo guest to upload to the demo sandbox
+        is_demo_upload = current_user.get("user_id") == "stu_demo_guest" and classroom_id == "cls_demo_sandbox"
+        if not is_demo_upload:
+            raise HTTPException(status_code=403, detail="Only teachers can upload files")
 
     if mime not in ALL_ALLOWED:
         raise HTTPException(status_code=415, detail="Unsupported file type")
@@ -101,6 +105,7 @@ async def upload_file(
     # ④ SHA-256 streaming hash + save to temp
     temp_name = f"{uuid4().hex}{ext}"
     temp_path = TEMP_DIR / temp_name
+    TEMP_DIR.mkdir(parents=True, exist_ok=True)
     hasher = hashlib.sha256()
     file_size = 0
 
@@ -290,19 +295,27 @@ async def get_file(
 async def download_file(
     file_id: str,
     token: str | None = Query(None, description="Bearer token (for use in <a> href links)"),
-    current_user: dict = Depends(get_current_user),
+    request: Request = None,
 ):
     """
     Download a file with its original filename.
     Supports both Authorization header (standard) and ?token= query param
     (for use in direct download links in <a> tags).
-    
-    Note: ?token= support is provided by the Depends(get_current_user) 
-    which reads from the Authorization header. For query-param token support,
-    the frontend should set the Authorization header instead.
     """
     db = get_db()
 
+    # 1. Manually resolve token
+    auth_header = request.headers.get("Authorization")
+    actual_token = token
+    if auth_header and auth_header.startswith("Bearer "):
+        actual_token = auth_header.split(" ")[1]
+    
+    if not actual_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+        
+    current_user = await get_user_from_token(actual_token)
+
+    # 2. Check file
     doc = await db.file_metadata.find_one({"file_id": file_id})
     if not doc:
         raise HTTPException(status_code=404, detail="File not found")

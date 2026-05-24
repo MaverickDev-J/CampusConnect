@@ -4,6 +4,8 @@ import { useAuth } from "@/app/context/auth-context";
 import { useClassrooms } from "@/app/hooks/useClassrooms";
 import { Sidebar } from "@/app/components/Sidebar";
 import Header from "@/app/components/Header";
+import DemoBanner from "@/app/components/DemoBanner";
+import LandingPage from "@/app/landing/page";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
@@ -13,11 +15,40 @@ import {
     Users,
     Zap,
     Plus,
+    Loader2,
 } from "lucide-react";
 
 import { ClassroomCard } from "@/app/components/ClassroomCard";
 
-export default function HomePage() {
+// ── Smart Root Page ─────────────────────────────────────────────────
+// Unauthenticated users → landing page
+// Authenticated users → dashboard
+
+export default function RootPage() {
+    const { user, loading, isDemo } = useAuth();
+
+    // Show a minimal loading state while auth is hydrating
+    if (loading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-slate-50">
+                <Loader2 className="animate-spin text-amber-500" size={32} />
+            </div>
+        );
+    }
+
+    // Not logged in → show the landing page
+    if (!user) {
+        return <LandingPage />;
+    }
+
+    // Logged in → show the dashboard
+    return <DashboardPage isDemo={isDemo} />;
+}
+
+
+// ── Dashboard (previously the entire page.tsx) ──────────────────────
+
+function DashboardPage({ isDemo }: { isDemo: boolean }) {
     const { user } = useAuth();
     const { classrooms, loading } = useClassrooms();
 
@@ -34,8 +65,9 @@ export default function HomePage() {
     return (
         <div className="flex min-h-screen">
             <Sidebar />
-            <main className="flex-1 ml-20 lg:ml-64 transition-all duration-300">
+            <main className="flex-1 transition-all duration-300">
                 <Header />
+                {isDemo && <DemoBanner />}
 
                 <div className="max-w-[1400px] mx-auto px-8 py-10">
                     {/* Bento Grid Layout */}

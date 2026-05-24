@@ -1,4 +1,4 @@
-"""CampusMind FastAPI application entry-point."""
+"""CampusConnect FastAPI application entry-point."""
 
 import json
 import logging
@@ -13,7 +13,7 @@ from core.config import settings
 from core.security import hash_password
 from database.mongo import connect_db, close_db, get_db
 from database.chroma import connect_chroma
-from database.redis import get_redis
+from database.redis import get_redis, RedisManager
 from core.websocket import manager
 import asyncio
 
@@ -112,26 +112,33 @@ async def lifespan(app: FastAPI):
 
     # ── Shutdown ───────────────────────────────────────────────────
     await close_db()
-    print("[STOP] MongoDB connection closed")
+    await RedisManager.close()
+    print("[STOP] MongoDB + Redis connections closed")
 
 
 # ── App ─────────────────────────────────────────────────────────────
 
 app = FastAPI(
-    title="CampusMind API",
-    description="Smart Campus AI Knowledge Base",
-    version="1.0.0",
+    title="CampusConnect API",
+    description="AI-Powered Campus Learning Platform",
+    version="2.0.0",
     lifespan=lifespan,
 )
 
 # ── CORS ─────────────────────────────────────────────────────────────
 # Explicit origins — never use ["*"] with allow_credentials=True
 # (browsers reject it, and it's insecure)
+import os as _os
+
 ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://localhost:3001",
     "http://127.0.0.1:3000",
 ]
+# Add production domain from env if set
+_prod_origin = _os.getenv("CORS_ORIGIN")
+if _prod_origin:
+    ALLOWED_ORIGINS.append(_prod_origin)
 
 app.add_middleware(
     CORSMiddleware,
@@ -165,6 +172,7 @@ from api.routers import (
     superadmin,
     calendar,
     notifications,
+    demo,
 )
 
 app.include_router(auth.router)
@@ -176,9 +184,13 @@ app.include_router(chat.router)
 app.include_router(announcements.router)
 app.include_router(calendar.router)
 app.include_router(notifications.router)
+app.include_router(demo.router)
 
 # ── Static files ─────────────────────────────────────────────────────
 # NOTE: For production, serve these via nginx or a CDN instead.
+# Auto-create the uploads directory so a fresh clone never crashes here.
+import pathlib as _pathlib
+_pathlib.Path("storage/uploads").mkdir(parents=True, exist_ok=True)
 app.mount("/static", StaticFiles(directory="storage/uploads"), name="static")
 
 

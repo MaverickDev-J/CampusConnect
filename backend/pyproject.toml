@@ -15,7 +15,7 @@ dependencies = [
     "langchain-core>=1.2.13",
     "langchain-text-splitters>=1.1.0",
     "langgraph>=1.0.8",
-    "motor>=3.7.1",
+    "motor>=3.6,<4.0",
     "passlib[bcrypt]>=1.7.4",
     "pillow>=12.1.1",
     "pydantic>=2.12.5",
@@ -31,4 +31,7 @@ dependencies = [
     "ddgs>=6.4.0",
     "slowapi>=0.1.9",
     "email-validator>=2.1.0",
+    "numpy>=1.26.0",
+    "gunicorn>=22.0.0",
+    "pymongo>=4.9,<4.10",
 ]

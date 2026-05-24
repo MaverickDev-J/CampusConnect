@@ -1,16 +1,17 @@
-
+# CampusConnect — Development Infrastructure
+# Usage: docker-compose up -d
 
 services:
   # ── MongoDB ─────────────────────────────────────────────────────────
+  # Primary database for users, classrooms, files, chat history.
+  # In production, replace with MongoDB Atlas (M0 free or M2 with credits).
   mongodb:
     image: mongo:7.0
-    container_name: campusmind_mongo
+    container_name: campusconnect_mongo
     ports:
       - "27017:27017"
     environment:
-      MONGO_INITDB_ROOT_USERNAME: campusadmin
-      MONGO_INITDB_ROOT_PASSWORD: campuspass123
-      MONGO_INITDB_DATABASE: campusmind
+      MONGO_INITDB_DATABASE: campusconnect
     volumes:
       - mongodb_data:/data/db
     restart: unless-stopped
@@ -19,16 +20,19 @@ services:
       interval: 15s
       timeout: 10s
       retries: 8
-      start_period: 60s   # First boot with auth init takes longer
+      start_period: 60s
 
-  # ── Redis Stack (includes RedisJSON, RediSearch) ─────────────────────
+  # ── Redis Stack ─────────────────────────────────────────────────────
+  # 4 roles: Celery broker, result backend, user cache, WebSocket PubSub.
+  # appendonly=yes ensures messages survive Redis restarts.
   redis:
     image: redis/redis-stack-server:latest
-    container_name: campusmind_redis
+    container_name: campusconnect_redis
     ports:
-      - "6379:6379"
+      - "6380:6379"
     volumes:
       - redis_data:/data
+    command: redis-server --appendonly yes --protected-mode no
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -36,18 +40,38 @@ services:
       timeout: 5s
       retries: 5
 
-  # ── Mongo Express (DB admin UI) ──────────────────────────────────────
+  # ── ChromaDB (Server Mode) ─────────────────────────────────────────
+  # Vector store for RAG embeddings. Runs as a proper HTTP server
+  # instead of embedded mode — eliminates file-locking conflicts
+  # between FastAPI and Celery worker.
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: campusconnect_chroma
+    ports:
+      - "8100:8000"
+    volumes:
+      - chroma_data:/chroma/chroma
+    environment:
+      ANONYMIZED_TELEMETRY: "false"
+      IS_PERSISTENT: "TRUE"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  # ── Mongo Express (Dev admin UI) ────────────────────────────────────
   mongo-express:
     image: mongo-express:1.0.2
-    container_name: campusmind_mongo_express
+    container_name: campusconnect_mongo_express
     ports:
       - "8081:8081"
     environment:
       ME_CONFIG_MONGODB_SERVER: mongodb
-      ME_CONFIG_MONGODB_ADMINUSERNAME: campusadmin
-      ME_CONFIG_MONGODB_ADMINPASSWORD: campuspass123
       ME_CONFIG_BASICAUTH_USERNAME: admin
       ME_CONFIG_BASICAUTH_PASSWORD: campusadmin
+      ME_CONFIG_MONGODB_ENABLE_ADMIN: "true"
     depends_on:
       mongodb:
         condition: service_healthy
@@ -57,4 +81,6 @@ volumes:
   mongodb_data:
     driver: local
   redis_data:
+    driver: local
+  chroma_data:
     driver: local

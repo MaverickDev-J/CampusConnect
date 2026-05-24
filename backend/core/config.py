@@ -14,9 +14,13 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRE_MINUTES: int = 10080       # 7 days
 
-    # ── Superadmin seed ──────────────────────────────────────────────
     SUPERADMIN_EMAIL: str = "superadmin@campusconnect.local"
     SUPERADMIN_PASSWORD: str = "changeme-in-production"
+
+    # ── Redis ────────────────────────────────────────────────────────
+    REDIS_URL: str = "redis://127.0.0.1:6380/0"
+    CELERY_BROKER_URL: str = "redis://127.0.0.1:6380/0"
+    CELERY_RESULT_BACKEND: str = "redis://127.0.0.1:6380/0"
 
     model_config = {
         "env_file": ".env",

@@ -2,11 +2,12 @@
 import redis.asyncio as redis
 import os
 import logging
+from core.config import settings
 
 logger = logging.getLogger(__name__)
 
 # Default Redis URL from environment or fallback to 127.0.0.1 (IPv4)
-REDIS_URL = os.getenv("REDIS_URL", "redis://127.0.0.1:6379/0")
+REDIS_URL = settings.REDIS_URL
 
 class RedisManager:
     _client: redis.Redis = None
