@@ -44,7 +44,7 @@ export default function DeepLearnPage() {
         stopStreaming,
     } = useChat();
 
-    const { files, loading: filesLoading } = useFiles({});
+    const { files, loading: filesLoading } = useFiles("");
 
     const [view, setView] = useState<View>("sessions");
     const [leftOpen, setLeftOpen] = useState(true);
