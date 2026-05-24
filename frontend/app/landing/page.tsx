@@ -359,7 +359,7 @@ export default function LandingPage() {
             {/* ── Footer ──────────────────────────────────────────── */}
             <footer className="relative z-10 border-t border-slate-100 py-10 text-center">
                 <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-                    Built by Jatin &middot; CampusConnect &copy; {new Date().getFullYear()}
+                    CampusConnect &copy; 2026
                 </p>
             </footer>
         </div>
