@@ -71,15 +71,15 @@ function DashboardPage({ isDemo }: { isDemo: boolean }) {
                 <Header />
                 {isDemo && <DemoBanner />}
 
-                <div className="max-w-[1400px] mx-auto px-8 py-10">
+                <div className="max-w-[1400px] mx-auto px-4 md:px-8 py-6 md:py-10">
                     {/* Bento Grid Layout */}
-                    <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-6 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-6 gap-4 md:gap-6">
                         
                         {/* 1. Large Welcome Hero (Bento: 4x2) */}
                         <motion.div
                             initial={{ opacity: 0, scale: 0.95 }}
                             animate={{ opacity: 1, scale: 1 }}
-                            className="md:col-span-4 lg:col-span-4 row-span-2 relative overflow-hidden rounded-[2.5rem] bg-primary p-12 text-white shadow-2xl shadow-primary/20"
+                            className="md:col-span-4 lg:col-span-4 row-span-2 relative overflow-hidden rounded-3xl md:rounded-[2.5rem] bg-primary p-6 md:p-12 text-white shadow-2xl shadow-primary/20"
                         >
                             <div className="relative z-10 h-full flex flex-col justify-between">
                                 <div>
@@ -87,7 +87,7 @@ function DashboardPage({ isDemo }: { isDemo: boolean }) {
                                         initial={{ opacity: 0, x: -20 }}
                                         animate={{ opacity: 1, x: 0 }}
                                         transition={{ delay: 0.2 }}
-                                        className="text-white/60 font-black text-sm uppercase tracking-[0.3em] mb-4"
+                                        className="text-white/60 font-black text-xs md:text-sm uppercase tracking-[0.3em] mb-4"
                                     >
                                         {greeting()}
                                     </motion.p>
@@ -95,7 +95,7 @@ function DashboardPage({ isDemo }: { isDemo: boolean }) {
                                         initial={{ opacity: 0, x: -20 }}
                                         animate={{ opacity: 1, x: 0 }}
                                         transition={{ delay: 0.3 }}
-                                        className="text-6xl font-black tracking-tighter mb-6 leading-[0.9]"
+                                        className="text-4xl md:text-6xl font-black tracking-tighter mb-6 leading-[0.9]"
                                     >
                                         Welcome back,<br/>
                                         <span className="text-white/80">{user?.name?.split(" ")[0]}</span>
@@ -104,7 +104,7 @@ function DashboardPage({ isDemo }: { isDemo: boolean }) {
                                         initial={{ opacity: 0 }}
                                         animate={{ opacity: 1 }}
                                         transition={{ delay: 0.4 }}
-                                        className="text-white/70 text-lg font-medium max-w-md leading-relaxed"
+                                        className="text-white/70 text-sm md:text-lg font-medium max-w-md leading-relaxed"
                                     >
                                         {isTeacher
                                             ? "Your academic command center is ready. Manage your classrooms and student progress with ease."
@@ -116,9 +116,9 @@ function DashboardPage({ isDemo }: { isDemo: boolean }) {
                                     initial={{ opacity: 0, y: 20 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: 0.5 }}
-                                    className="pt-10"
+                                    className="pt-6 md:pt-10"
                                 >
-                                    <Link href="/classrooms" className="inline-flex items-center gap-3 px-8 py-4 bg-white text-primary rounded-2xl font-black text-sm shadow-xl hover:scale-105 transition-transform group">
+                                    <Link href="/classrooms" className="inline-flex items-center gap-3 px-6 md:px-8 py-3 md:py-4 bg-white text-primary rounded-xl md:rounded-2xl font-black text-xs md:text-sm shadow-xl hover:scale-105 transition-transform group">
                                         View All Classrooms <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
                                     </Link>
                                 </motion.div>
@@ -131,7 +131,7 @@ function DashboardPage({ isDemo }: { isDemo: boolean }) {
                         </motion.div>
 
                         {/* 2. Quick Stats (Bento Side Column) */}
-                        <div className="md:col-span-2 lg:col-span-2 grid grid-cols-1 gap-6">
+                        <div className="md:col-span-2 lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-1 gap-4 md:gap-6">
                             {[
                                 { label: "Total Members", value: classrooms.reduce((acc, curr) => acc + (curr.member_count || 0), 0), icon: Users, color: "bg-amber-100 text-amber-600" },
                                 { label: "Active Classrooms", value: classrooms.length, icon: Zap, color: "bg-emerald-100 text-emerald-600" },
@@ -141,14 +141,14 @@ function DashboardPage({ isDemo }: { isDemo: boolean }) {
                                     initial={{ opacity: 0, x: 20 }}
                                     animate={{ opacity: 1, x: 0 }}
                                     transition={{ delay: 0.2 + (i * 0.1) }}
-                                    className="p-8 rounded-[2.5rem] bg-white border border-slate-100 shadow-soft flex items-center gap-6"
+                                    className="p-6 md:p-8 rounded-2xl md:rounded-[2.5rem] bg-white border border-slate-100 shadow-soft flex items-center gap-4 md:gap-6"
                                 >
-                                    <div className={`w-16 h-16 rounded-2xl flex items-center justify-center flex-shrink-0 ${stat.color} shadow-sm shadow-inherit`}>
-                                        <stat.icon size={28} />
+                                    <div className={`w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-2xl flex items-center justify-center flex-shrink-0 ${stat.color} shadow-sm shadow-inherit`}>
+                                        <stat.icon size={24} className="md:w-7 md:h-7" />
                                     </div>
                                     <div>
-                                        <div className="text-3xl font-black text-slate-900 tracking-tight leading-none mb-1">{stat.value}</div>
-                                        <div className="text-[10px] text-slate-400 font-black uppercase tracking-widest">{stat.label}</div>
+                                        <div className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight leading-none mb-1">{stat.value}</div>
+                                        <div className="text-[9px] md:text-[10px] text-slate-400 font-black uppercase tracking-widest">{stat.label}</div>
                                     </div>
                                 </motion.div>
                             ))}
@@ -157,12 +157,12 @@ function DashboardPage({ isDemo }: { isDemo: boolean }) {
                         {/* Recent Activity Section Removed as per request */}
 
                         {/* 4. Classroom Stream (Bento: Full Width Row) */}
-                        <div className="md:col-span-6 lg:col-span-6 pt-10">
-                            <div className="flex items-center justify-between mb-8">
+                        <div className="md:col-span-6 lg:col-span-6 pt-6 md:pt-10">
+                            <div className="flex items-center justify-between mb-6 md:mb-8">
                                 <motion.h2 
                                     initial={{ opacity: 0, x: -20 }}
                                     animate={{ opacity: 1, x: 0 }}
-                                    className="text-4xl font-black text-slate-900 tracking-tighter"
+                                    className="text-2xl md:text-4xl font-black text-slate-900 tracking-tighter"
                                 >
                                     My Classrooms
                                 </motion.h2>
@@ -170,11 +170,11 @@ function DashboardPage({ isDemo }: { isDemo: boolean }) {
                                     initial={{ opacity: 0, x: 20 }}
                                     animate={{ opacity: 1, x: 0 }}
                                 >
-                                    <Link href="/classrooms" className="text-primary font-black text-xs uppercase tracking-widest hover:bg-primary/5 px-6 py-3 rounded-2xl border border-primary/10 transition-all">Explore All</Link>
+                                    <Link href="/classrooms" className="text-primary font-black text-[10px] md:text-xs uppercase tracking-widest hover:bg-primary/5 px-4 md:px-6 py-2 md:py-3 rounded-xl md:rounded-2xl border border-primary/10 transition-all">Explore All</Link>
                                 </motion.div>
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
                                 {loading ? (
                                     [1, 2, 3, 4].map(i => (
                                         <div key={i} className="h-64 rounded-[2.5rem] bg-white border border-slate-100 animate-pulse" />

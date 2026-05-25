@@ -241,8 +241,8 @@ export default function CalendarPage() {
                     </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-                        {/* Calendar Grid */}
-                        <div className="lg:col-span-3">
+                        {/* Calendar Grid (Desktop View) */}
+                        <div className="lg:col-span-3 hidden lg:block">
                             <div className="bg-white rounded-3xl shadow-premium border border-slate-200 overflow-hidden">
                                 <div className="grid grid-cols-7 bg-slate-50 border-b border-slate-200">
                                     {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(day => (
@@ -254,6 +254,58 @@ export default function CalendarPage() {
                                 <div className="grid grid-cols-7">
                                     {renderDays()}
                                 </div>
+                            </div>
+                        </div>
+
+                        {/* Calendar Agenda List (Mobile View) */}
+                        <div className="lg:col-span-3 block lg:hidden space-y-4">
+                            <div className="bg-white p-6 rounded-3xl shadow-premium border border-slate-200">
+                                <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-6 flex items-center gap-2">
+                                    <CalendarIcon size={18} className="text-amber-600" />
+                                    Agenda for {monthNames[currentDate.getMonth()]}
+                                </h3>
+
+                                {(() => {
+                                    const activeMonthEvents = events
+                                        .filter(e => e.date.getMonth() === currentDate.getMonth() && e.date.getFullYear() === currentDate.getFullYear())
+                                        .sort((a, b) => a.date.getTime() - b.date.getTime());
+
+                                    if (activeMonthEvents.length === 0) {
+                                        return (
+                                            <div className="text-center py-12 text-slate-400">
+                                                <CalendarIcon className="mx-auto mb-4 opacity-20" size={40} />
+                                                <p className="text-xs font-bold uppercase tracking-widest">No activities scheduled</p>
+                                            </div>
+                                        );
+                                    }
+
+                                    return (
+                                        <div className="space-y-4">
+                                            {activeMonthEvents.map(event => (
+                                                <div 
+                                                    key={event.event_id || event.id} 
+                                                    onClick={() => setSelectedEvent(event)}
+                                                    className="p-5 rounded-2xl bg-slate-50 border border-slate-100 hover:bg-white hover:border-amber-600/20 hover:shadow-soft transition-all duration-300 flex items-start gap-4 cursor-pointer relative group"
+                                                >
+                                                    <div className={`w-3.5 h-3.5 rounded-full ${eventColors[event.type] || "bg-indigo-500"} mt-1 flex-shrink-0`} />
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-center justify-between gap-4 mb-1">
+                                                            <h4 className="text-sm font-black text-slate-900 truncate tracking-tight">{event.title}</h4>
+                                                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider bg-white border border-slate-100 px-2 py-0.5 rounded-lg flex-shrink-0">
+                                                                {event.date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                                                            </span>
+                                                        </div>
+                                                        <p className="text-xs text-slate-500 font-medium truncate italic leading-relaxed mb-2">{event.description || "No description provided."}</p>
+                                                        <div className="flex items-center gap-4 text-[9px] font-black uppercase tracking-widest text-slate-400">
+                                                            <span className="truncate">{event.classroom_name || "Global Network"}</span>
+                                                            <span className="bg-amber-100/50 text-amber-800 px-2 py-0.5 rounded-md text-[8px]">{event.type}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    );
+                                })()}
                             </div>
                         </div>
 

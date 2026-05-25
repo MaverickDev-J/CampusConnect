@@ -252,9 +252,9 @@ export default function ClassroomPage({ params }: { params: Promise<{ id: string
                     )}
                 </AnimatePresence>
 
-                <div className="max-w-6xl mx-auto w-full px-10 py-12 flex-1 relative z-10">
+                <div className="max-w-6xl mx-auto w-full px-4 md:px-10 py-6 md:py-12 flex-1 relative z-10">
                     {/* Back Button */}
-                    <div className="mb-8">
+                    <div className="mb-6 md:mb-8">
                         <Link href="/classrooms" className="inline-flex items-center gap-2 text-slate-400 hover:text-amber-600 transition-all group">
                             <div className="w-10 h-10 rounded-xl bg-white border border-slate-100 flex items-center justify-center group-hover:border-amber-600/20 shadow-soft transition-all group-hover:shadow-md">
                                 <ArrowLeft size={18} />
@@ -267,20 +267,20 @@ export default function ClassroomPage({ params }: { params: Promise<{ id: string
                     <motion.div 
                         initial={{ opacity: 0, y: 30 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="relative rounded-[3rem] overflow-hidden bg-slate-950 shadow-premium mb-12 h-64 md:h-80 group"
+                        className="relative rounded-3xl md:rounded-[3rem] overflow-hidden bg-slate-950 shadow-premium mb-6 md:mb-12 h-56 md:h-80 group"
                     >
                         <div className="absolute inset-0 bg-gradient-to-br from-amber-400 via-amber-600 to-amber-900 opacity-60 group-hover:opacity-70 transition-opacity duration-700" />
                         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10 mix-blend-overlay" />
                         
-                        <div className="p-10 md:p-16 relative z-10 flex flex-col justify-end h-full">
+                        <div className="p-6 md:p-16 relative z-10 flex flex-col justify-end h-full">
                             <motion.div 
                                 initial={{ opacity: 0, x: -20 }}
                                 animate={{ opacity: 1, x: 0 }}
                                 transition={{ delay: 0.2 }}
-                                className="flex items-center gap-3 px-4 py-2 rounded-2xl bg-white/10 border border-white/20 w-fit mb-6 backdrop-blur-md shadow-lg"
+                                className="flex items-center gap-3 px-3 py-1.5 md:px-4 md:py-2 rounded-xl md:rounded-2xl bg-white/10 border border-white/20 w-fit mb-4 md:mb-6 backdrop-blur-md shadow-lg"
                             >
-                                <Globe className="w-4 h-4 text-white/70" />
-                                <span className="text-[11px] font-black text-white tracking-[0.3em] uppercase">
+                                <Globe className="w-3.5 h-3.5 text-white/70" />
+                                <span className="text-[10px] md:text-[11px] font-black text-white tracking-[0.3em] uppercase">
                                     {classroom.subject || "General Space"}
                                 </span>
                             </motion.div>
@@ -288,7 +288,7 @@ export default function ClassroomPage({ params }: { params: Promise<{ id: string
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: 0.3 }}
-                                className="text-4xl md:text-6xl font-black tracking-tighter text-white leading-[0.9] mb-4"
+                                className="text-2xl md:text-5xl lg:text-6xl font-black tracking-tighter text-white leading-[0.9] mb-4"
                             >
                                 {classroom.name}
                             </motion.h1>
@@ -296,7 +296,7 @@ export default function ClassroomPage({ params }: { params: Promise<{ id: string
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
                                 transition={{ delay: 0.4 }}
-                                className="flex flex-wrap items-center gap-8 text-white/60 text-[10px] font-black uppercase tracking-[0.3em]"
+                                className="flex flex-wrap items-center gap-4 md:gap-8 text-white/60 text-[9px] md:text-[10px] font-black uppercase tracking-[0.3em]"
                             >
                                 <div className="flex items-center gap-2.5">
                                     <Users size={14} className="text-white/40" />
@@ -309,7 +309,7 @@ export default function ClassroomPage({ params }: { params: Promise<{ id: string
                         </div>
                     </motion.div>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-4 gap-10 items-start">
+                    <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 md:gap-10 items-start">
                         {/* Sidebar Column */}
                         <div className="lg:col-span-1 space-y-8">
                             <div className="p-8 rounded-[2.5rem] glass border border-white/40 shadow-premium">
@@ -453,7 +453,7 @@ export default function ClassroomPage({ params }: { params: Promise<{ id: string
                                             initial={{ opacity: 0, y: 30 }}
                                             animate={{ opacity: 1, y: 0 }}
                                             transition={{ delay: idx * 0.05 }}
-                                            className="p-8 rounded-[2.5rem] bg-white border border-slate-100 shadow-premium relative overflow-hidden group"
+                                            className="p-6 md:p-8 rounded-3xl md:rounded-[2.5rem] bg-white border border-slate-100 shadow-premium relative overflow-hidden group"
                                         >
                                             <div className="flex items-center justify-between mb-8">
                                                 <div className="flex items-center gap-4">
@@ -481,12 +481,12 @@ export default function ClassroomPage({ params }: { params: Promise<{ id: string
                                                     </button>
                                                 )}
                                             </div>
-                                            <div className="text-lg text-slate-700 font-medium whitespace-pre-wrap leading-relaxed tracking-tight mb-8">
+                                            <div className="text-base md:text-lg text-slate-700 font-medium whitespace-pre-wrap leading-relaxed tracking-tight mb-6 md:mb-8">
                                                 {ann.content}
                                             </div>
 
                                             {ann.file && (
-                                                <div className="p-6 rounded-[2rem] bg-slate-50 border border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-6 group/file hover:bg-white transition-all duration-300">
+                                                <div className="p-4 md:p-6 rounded-2xl md:rounded-[2rem] bg-slate-50 border border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4 md:gap-6 group/file hover:bg-white transition-all duration-300">
                                                     <div className="flex items-center gap-5">
                                                         <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg transition-transform group-hover/file:rotate-6 ${
                                                             ann.file.file_type === "pdf" ? "bg-rose-50 text-rose-500 shadow-rose-100" : "bg-amber-50 text-amber-600 shadow-amber-100"

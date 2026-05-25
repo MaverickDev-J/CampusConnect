@@ -225,51 +225,6 @@ export default function LandingPage() {
 
 
 
-            {/* ── CTA Section ─────────────────────────────────────── */}
-            <motion.section
-                variants={containerVariants}
-                initial="hidden"
-                whileInView="visible"
-                viewport={{ once: true }}
-                className="relative z-10 max-w-6xl mx-auto px-8 md:px-16 py-20"
-            >
-                <motion.div
-                    variants={itemVariants}
-                    className="relative overflow-hidden rounded-[3rem] bg-slate-900 p-12 md:p-20 text-center"
-                >
-                    <div className="absolute top-[-50px] right-[-50px] w-64 h-64 bg-amber-500/10 rounded-full blur-[80px]" />
-                    <div className="absolute bottom-[-50px] left-[-50px] w-48 h-48 bg-indigo-500/10 rounded-full blur-[80px]" />
-
-                    <div className="relative z-10">
-                        <h2 className="text-3xl md:text-5xl font-black tracking-tighter text-white mb-4">
-                            See It In Action
-                        </h2>
-                        <p className="text-lg text-slate-400 font-medium mb-10 max-w-lg mx-auto">
-                            No sign up required. Jump straight into a pre-loaded AI classroom 
-                            and explore the system architecture through conversation.
-                        </p>
-
-                        <motion.button
-                            whileHover={{ scale: 1.03 }}
-                            whileTap={{ scale: 0.97 }}
-                            onClick={handleDemoLogin}
-                            disabled={demoLoading}
-                            className="inline-flex items-center gap-3 px-10 py-5 rounded-2xl bg-amber-500 text-slate-900 text-sm font-black uppercase tracking-widest shadow-xl shadow-amber-500/30 hover:bg-amber-400 transition-all disabled:opacity-50"
-                        >
-                            {demoLoading ? (
-                                <Loader2 className="animate-spin" size={20} />
-                            ) : (
-                                <>
-                                    <Sparkles size={20} />
-                                    Launch Demo
-                                    <ArrowRight size={20} />
-                                </>
-                            )}
-                        </motion.button>
-                    </div>
-                </motion.div>
-            </motion.section>
-
             {/* ── Footer ──────────────────────────────────────────── */}
             <footer className="relative z-10 border-t border-slate-100 py-10 text-center">
                 <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">

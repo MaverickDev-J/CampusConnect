@@ -17,7 +17,8 @@ import {
     ShieldCheck,
     Pencil,
     Trash2,
-    LogIn
+    LogIn,
+    X
 } from "lucide-react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
@@ -51,6 +52,7 @@ export default function ClassroomChatPage({ params }: { params: Promise<{ id: st
     const scrollRef = useRef<HTMLDivElement>(null);
     const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
     const [editTitle, setEditTitle] = useState("");
+    const [isOpenMobileHistory, setIsOpenMobileHistory] = useState(false);
 
     const handleRename = async (e: React.FormEvent | React.FocusEvent, sessionId: string) => {
         e.preventDefault();
@@ -143,7 +145,17 @@ export default function ClassroomChatPage({ params }: { params: Promise<{ id: st
                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest truncate">AI Learning Assistant</span>
                     </div>
 
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2.5">
+                        {/* Mobile Sessions Toggle Button */}
+                        {!isDemo && (
+                            <button
+                                onClick={() => setIsOpenMobileHistory(true)}
+                                className="lg:hidden flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-slate-100 text-[10px] font-black uppercase tracking-widest hover:text-amber-600 transition-colors shadow-sm"
+                            >
+                                <History size={12} />
+                                <span>Chats</span>
+                            </button>
+                        )}
                         <span className="text-xs font-black text-slate-900 tracking-tight hidden sm:block">Study Assistant</span>
                         <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-[9px] text-amber-700 font-black tracking-widest uppercase mr-2">
                             <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" /> Active
@@ -443,6 +455,117 @@ export default function ClassroomChatPage({ params }: { params: Promise<{ id: st
                     </main>
                 </div>
             </div>
+
+            {/* Mobile Session History Drawer overlay */}
+            <AnimatePresence>
+                {isOpenMobileHistory && (
+                    <>
+                        {/* Mobile Backdrop */}
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 0.5 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setIsOpenMobileHistory(false)}
+                            className="fixed inset-0 bg-slate-900/60 z-50 lg:hidden"
+                        />
+
+                        {/* Mobile History Drawer */}
+                        <motion.aside
+                            initial={{ x: "100%" }}
+                            animate={{ x: 0 }}
+                            exit={{ x: "100%" }}
+                            transition={{ type: "spring", damping: 25, stiffness: 200 }}
+                            className="fixed right-0 top-0 h-screen w-72 bg-white z-50 shadow-premium flex flex-col lg:hidden border-l border-slate-200"
+                        >
+                            <div className="p-4 flex items-center justify-between border-b border-slate-100">
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                                    <History size={12} />
+                                    Recent Chats
+                                </span>
+                                <button
+                                    onClick={() => setIsOpenMobileHistory(false)}
+                                    className="p-1 rounded-lg hover:bg-slate-50 text-slate-400"
+                                >
+                                    <X size={16} />
+                                </button>
+                            </div>
+
+                            <div className="p-4">
+                                <button 
+                                    onClick={() => {
+                                        setActiveSessionId(null);
+                                        setIsOpenMobileHistory(false);
+                                        window.location.reload();
+                                    }}
+                                    className="btn-neumorphic-primary w-full py-3 rounded-xl flex items-center justify-center gap-2.5 text-xs font-black uppercase tracking-widest group"
+                                >
+                                    <Plus size={15} className="group-hover:rotate-90 transition-transform" />
+                                    New Chat
+                                </button>
+                            </div>
+
+                            <div className="flex-1 overflow-y-auto px-3 space-y-1.5 pb-4 custom-scrollbar">
+                                {sessions.map(s => (
+                                    <div
+                                        key={s.session_id}
+                                        onClick={() => {
+                                            if (editingSessionId !== s.session_id) {
+                                                loadHistory(s.session_id);
+                                                setIsOpenMobileHistory(false);
+                                            }
+                                        }}
+                                        className={`w-full px-3 py-2.5 rounded-xl text-left transition-all relative cursor-pointer group ${
+                                            activeSessionId === s.session_id 
+                                            ? "bg-amber-50 shadow-sm border border-amber-200 text-amber-900" 
+                                            : "text-slate-500 hover:bg-white/50 hover:text-slate-900"
+                                        }`}
+                                    >
+                                        {editingSessionId === s.session_id ? (
+                                            <form onSubmit={(e) => handleRename(e, s.session_id)} className="flex items-center">
+                                                <input 
+                                                    type="text"
+                                                    autoFocus
+                                                    value={editTitle}
+                                                    onChange={e => setEditTitle(e.target.value)}
+                                                    onBlur={(e) => handleRename(e, s.session_id)}
+                                                    onClick={e => e.stopPropagation()}
+                                                    className="w-full bg-white border border-amber-200 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500/10"
+                                                />
+                                            </form>
+                                        ) : (
+                                            <>
+                                                <div className="text-xs font-bold truncate pr-14 tracking-tight leading-tight">{s.title}</div>
+                                                <div className="text-[8px] font-black opacity-40 mt-1 uppercase tracking-widest">
+                                                    {new Date(s.updated_at).toLocaleDateString()}
+                                                </div>
+                                                
+                                                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-100">
+                                                    <button 
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setEditTitle(s.title);
+                                                            setEditingSessionId(s.session_id);
+                                                        }}
+                                                        className="w-6 h-6 rounded-lg bg-white shadow-sm flex items-center justify-center text-slate-400 hover:text-amber-600 transition-colors border border-slate-100"
+                                                    >
+                                                        <Pencil size={10} />
+                                                    </button>
+                                                    <button 
+                                                        onClick={(e) => handleDelete(e, s.session_id)}
+                                                        className="w-6 h-6 rounded-lg bg-white shadow-sm flex items-center justify-center text-slate-400 hover:text-red-500 transition-colors border border-slate-100"
+                                                    >
+                                                        <Trash2 size={10} />
+                                                    </button>
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        </motion.aside>
+                    </>
+                )}
+            </AnimatePresence>
         </div>
     );
 }

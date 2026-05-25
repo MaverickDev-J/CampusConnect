@@ -1,6 +1,6 @@
 "use client";
 
-import { Search, GraduationCap, Bell, LogOut, ChevronDown, User } from "lucide-react";
+import { Search, GraduationCap, Bell, LogOut, ChevronDown, User, Menu } from "lucide-react";
 import { useAuth } from "@/app/context/auth-context";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
@@ -90,15 +90,22 @@ function HeaderInner() {
         : "CC";
 
     return (
-        <header className="relative z-40 flex items-center justify-between px-8 h-24 transition-all bg-transparent">
-            <div className="flex-shrink-0 flex items-center gap-4">
-                <h1 className="text-2xl font-black text-slate-900 tracking-tighter">
+        <header className="relative z-40 flex items-center justify-between px-4 md:px-8 h-16 md:h-24 transition-all bg-transparent">
+            <div className="flex-shrink-0 flex items-center gap-2 md:gap-4">
+                {/* Mobile Sidebar Hamburger Trigger */}
+                <button
+                    onClick={() => window.dispatchEvent(new CustomEvent("toggle-mobile-sidebar"))}
+                    className="flex md:hidden items-center justify-center w-10 h-10 rounded-xl bg-white/50 border border-slate-200 hover:bg-white text-slate-500 hover:text-amber-600 transition-all shadow-soft mr-1"
+                >
+                    <Menu size={20} />
+                </button>
+                <h1 className="text-xl md:text-2xl font-black text-slate-900 tracking-tighter">
                     {pathname === "/" ? "Dashboard" : "Classroom"}
                 </h1>
             </div>
 
             {/* Centered Search */}
-            <div className="flex-1 flex justify-center max-w-xl mx-auto px-8">
+            <div className="flex-1 hidden sm:flex justify-center max-w-xl mx-auto px-4 md:px-8">
                 <div className="relative w-full group">
                     <div className="absolute inset-0 bg-primary/5 rounded-2xl blur-xl group-focus-within:bg-primary/10 transition-all duration-500 opacity-0 group-focus-within:opacity-100" />
                     <form 
@@ -124,12 +131,12 @@ function HeaderInner() {
             </div>
 
             {/* Right side actions */}
-            <div className="flex items-center gap-5">
+            <div className="flex items-center gap-2 md:gap-5">
                 <div className="relative">
                     <button 
                         suppressHydrationWarning
                         onClick={() => setShowNotifications(!showNotifications)}
-                        className="relative flex items-center justify-center w-12 h-12 rounded-2xl bg-white/50 border border-slate-200 hover:border-amber-600/40 hover:bg-white transition-all shadow-soft group"
+                        className="relative flex items-center justify-center w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl bg-white/50 border border-slate-200 hover:border-amber-600/40 hover:bg-white transition-all shadow-soft group"
                     >
                         <Bell className="w-5 h-5 text-slate-400 group-hover:text-amber-600 transition-colors" />
                         {unreadCount > 0 && (
@@ -215,7 +222,7 @@ function HeaderInner() {
                     </div>
                     <div 
                         onClick={() => setShowProfileMenu(!showProfileMenu)}
-                        className="relative flex items-center justify-center w-12 h-12 rounded-2xl bg-white shadow-soft border border-slate-100 group cursor-pointer hover:border-primary/20 transition-all overflow-hidden"
+                        className="relative flex items-center justify-center w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl bg-white shadow-soft border border-slate-100 group cursor-pointer hover:border-primary/20 transition-all overflow-hidden"
                     >
                         <div className="absolute inset-0 bg-primary opacity-0 group-hover:opacity-5 transition-opacity" />
                         <span className="text-sm font-black text-primary relative z-10 transition-transform group-hover:scale-110 duration-300">
