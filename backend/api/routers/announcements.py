@@ -31,6 +31,12 @@ async def create_announcement(
     current_user: dict = Depends(get_current_user),
 ):
     """Create an announcement. Teachers and superadmins only."""
+    logger.info(
+        "[create_announcement] user=%s role=%s classroom=%s file_id=%s content_len=%s",
+        current_user.get("user_id"), current_user.get("role"),
+        body.classroom_id, body.file_id,
+        len(body.content) if body.content else 0,
+    )
     if current_user.get("role") not in ("teacher", "superadmin"):
         raise HTTPException(status_code=403, detail="Only teachers can post announcements")
 

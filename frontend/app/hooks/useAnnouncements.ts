@@ -40,6 +40,8 @@ export function useAnnouncements(classroomId: string) {
 
     const postAnnouncement = async (content: string, fileId: string | null = null) => {
         if (!user?.token) return;
+        // Trim content; send null if empty so backend can handle file-only posts
+        const trimmedContent = content?.trim() || null;
         try {
             const res = await fetch(`${API_BASE_URL}/api/announcements`, {
                 method: "POST",
@@ -49,13 +51,19 @@ export function useAnnouncements(classroomId: string) {
                 },
                 body: JSON.stringify({ 
                     classroom_id: classroomId, 
-                    content,
+                    content: trimmedContent,
                     file_id: fileId 
                 }),
             });
             if (!res.ok) {
-                const err = await res.json();
-                throw new Error(err.detail || "Failed to post");
+                let detail = `Server error (${res.status})`;
+                try {
+                    const err = await res.json();
+                    detail = err.detail || detail;
+                } catch {
+                    // Response was not JSON (e.g. Nginx HTML error page)
+                }
+                throw new Error(detail);
             }
             const newAnn = await res.json();
             // Optimistic update or just refetch

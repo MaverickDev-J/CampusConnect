@@ -49,6 +49,7 @@ export default function ClassroomPage({ params }: { params: Promise<{ id: string
 
     const [annContent, setAnnContent] = useState("");
     const [posting, setPosting] = useState(false);
+    const [showComposer, setShowComposer] = useState(false);
     const [uploadProgress, setUploadProgress] = useState<{ name: string; percent: number } | null>(null);
     const [successToast, setSuccessToast] = useState<string | null>(null);
     const [upcomingEvent, setUpcomingEvent] = useState<any>(null);
@@ -112,9 +113,10 @@ export default function ClassroomPage({ params }: { params: Promise<{ id: string
             await postAnnouncement(annContent, stagedFileId);
             setAnnContent("");
             setStagedFileId(null);
+            setShowComposer(false);
             refreshAnnouncements();
         } catch (err) {
-            alert("Failed to post announcement");
+            alert(err instanceof Error ? err.message : "Failed to post announcement");
         } finally {
             setPosting(false);
         }
@@ -361,7 +363,7 @@ export default function ClassroomPage({ params }: { params: Promise<{ id: string
                                     layout
                                     className="p-8 rounded-[2.5rem] bg-white border border-slate-100 shadow-premium"
                                 >
-                                    {posting || annContent ? (
+                                    {posting || showComposer ? (
                                         <div className="space-y-6">
                                             <div className="relative">
                                                 <textarea
@@ -391,7 +393,7 @@ export default function ClassroomPage({ params }: { params: Promise<{ id: string
                                                     )}
                                                 </div>
                                                 <div className="flex gap-4">
-                                                    <button onClick={() => {setAnnContent(""); setStagedFileId(null);}} className="px-8 py-3.5 rounded-2xl text-slate-400 font-black text-sm uppercase tracking-widest hover:bg-slate-50 transition-all font-sans">Cancel</button>
+                                                    <button onClick={() => {setAnnContent(""); setStagedFileId(null); setShowComposer(false);}} className="px-8 py-3.5 rounded-2xl text-slate-400 font-black text-sm uppercase tracking-widest hover:bg-slate-50 transition-all font-sans">Cancel</button>
                                                     <button 
                                                         disabled={posting || (!annContent.trim() && !stagedFileId)}
                                                         onClick={handlePost}
@@ -405,7 +407,7 @@ export default function ClassroomPage({ params }: { params: Promise<{ id: string
                                         </div>
                                     ) : (
                                         <div 
-                                            onClick={() => setAnnContent(" ")}
+                                            onClick={() => setShowComposer(true)}
                                             className="flex items-center gap-6 cursor-pointer group"
                                         >
                                             <div className="w-14 h-14 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-amber-600 group-hover:text-slate-900 transition-all duration-500 group-hover:shadow-lg group-hover:shadow-amber-500/20 group-hover:rotate-6">
