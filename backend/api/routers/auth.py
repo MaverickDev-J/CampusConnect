@@ -42,9 +42,7 @@ def _build_user_id(role: RoleEnum) -> str:
 )
 async def register(request: Request, payload: UserCreate):
     """
-    Self-registration — students only.
-
-    Teachers are provisioned by the Superadmin via /api/superadmin/provision-teacher.
+    Self-registration — students and teachers.
     """
     db = get_db()
 
@@ -52,9 +50,13 @@ async def register(request: Request, payload: UserCreate):
     if await db.users.find_one({"email": payload.email}):
         raise HTTPException(status_code=409, detail="Email already registered")
 
-    # 2. Build user document (student role only for self-registration)
+    # 2. Build user document (allow student and teacher self-registration)
+    role = payload.role or RoleEnum.student
+    if role == RoleEnum.superadmin:
+        raise HTTPException(status_code=403, detail="Cannot self-register as superadmin")
+
     email_lower = payload.email.lower().strip()
-    user_id = _build_user_id(RoleEnum.student)
+    user_id = _build_user_id(role)
     profile = payload.profile or {}
     
     user_doc = {
@@ -62,7 +64,7 @@ async def register(request: Request, payload: UserCreate):
         "email": email_lower,
         "name": payload.name,
         "password": hash_password(payload.password),
-        "role": RoleEnum.student.value,
+        "role": role.value,
         "profile": profile,
     }
 
@@ -72,7 +74,7 @@ async def register(request: Request, payload: UserCreate):
         user_id=user_id,
         email=payload.email,
         name=payload.name,
-        role=RoleEnum.student,
+        role=role,
         profile=profile,
     )
 

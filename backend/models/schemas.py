@@ -19,10 +19,11 @@ class RoleEnum(str, Enum):
 # ── Request schemas ──────────────────────────────────────────────────
 
 class UserCreate(BaseModel):
-    """Self-registration — students only."""
+    """Self-registration — students and teachers."""
     email: EmailStr                                      # Proper email validation
     name: str = Field(..., min_length=1, max_length=100, strip_whitespace=True)
     password: str = Field(..., min_length=8, max_length=128)
+    role: Optional[RoleEnum] = RoleEnum.student
     profile: Optional[Dict[str, Any]] = None
 
     model_config = {"json_schema_extra": {
@@ -31,6 +32,7 @@ class UserCreate(BaseModel):
                 "email": "stu@college.com",
                 "name": "John Doe",
                 "password": "secret123",
+                "role": "student",
                 "profile": {"roll_no": "221001"},
             }
         ]

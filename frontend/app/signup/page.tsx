@@ -16,6 +16,7 @@ export default function SignupPage() {
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
     const [rollNo, setRollNo] = useState("");
+    const [role, setRole] = useState<"student" | "teacher">("student");
     
     const [localError, setLocalError] = useState<string | null>(null);
 
@@ -32,13 +33,19 @@ export default function SignupPage() {
             setLocalError("Passwords do not match.");
             return;
         }
-        if (password.length < 6) {
-            setLocalError("Password must be at least 6 characters.");
+        if (password.length < 8) {
+            setLocalError("Password must be at least 8 characters.");
             return;
         }
 
         try {
-            await signup(name, email, password, { roll_no: rollNo });
+            await signup(
+                name,
+                email,
+                password,
+                role,
+                role === "student" ? { roll_no: rollNo } : undefined
+            );
         } catch (err) {
             // Error is handled by AuthContext
         }
@@ -67,6 +74,34 @@ export default function SignupPage() {
                 </div>
 
                 <div className="bg-white/70 backdrop-blur-xl border border-slate-200 p-8 sm:p-12 rounded-3xl shadow-premium relative overflow-hidden group">
+                    {/* Role Selection Tabs */}
+                    <div className="flex bg-slate-100 p-1.5 rounded-2xl mb-8 relative z-10">
+                        <button
+                            type="button"
+                            onClick={() => { setRole("student"); clearError(); setLocalError(null); }}
+                            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${
+                                role === "student"
+                                    ? "bg-white text-slate-900 shadow-md"
+                                    : "text-slate-400 hover:text-slate-600"
+                            }`}
+                        >
+                            <GraduationCap size={16} />
+                            Student
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => { setRole("teacher"); clearError(); setLocalError(null); }}
+                            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${
+                                role === "teacher"
+                                    ? "bg-white text-slate-900 shadow-md"
+                                    : "text-slate-400 hover:text-slate-600"
+                            }`}
+                        >
+                            <Sparkles size={16} className="text-amber-500" />
+                            Teacher
+                        </button>
+                    </div>
+
                     <form onSubmit={handleSubmit} className="space-y-8 relative z-10">
                         {displayError && (
                             <motion.div 
@@ -78,7 +113,7 @@ export default function SignupPage() {
                             </motion.div>
                         )}
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div className={role === "student" ? "grid grid-cols-1 md:grid-cols-2 gap-8" : "space-y-3"}>
                             <div className="space-y-3">
                                 <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-4">Full Name</label>
                                 <div className="relative">
@@ -94,20 +129,22 @@ export default function SignupPage() {
                                 </div>
                             </div>
 
-                            <div className="space-y-3">
-                                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-4">ID / Roll No</label>
-                                <div className="relative">
-                                    <GraduationCap className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={20} />
-                                    <input 
-                                        type="text" 
-                                        value={rollNo}
-                                        onChange={(e) => setRollNo(e.target.value)}
-                                        placeholder="21XXXXX"
-                                        className="w-full bg-slate-50 border-2 border-slate-50 rounded-3xl py-4 pl-12 pr-4 focus:outline-none focus:border-amber-600/30 focus:ring-8 focus:ring-amber-600/5 transition-all text-sm font-bold placeholder:text-slate-300"
-                                        required
-                                    />
+                            {role === "student" && (
+                                <div className="space-y-3">
+                                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-4">ID / Roll No</label>
+                                    <div className="relative">
+                                        <GraduationCap className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={20} />
+                                        <input 
+                                            type="text" 
+                                            value={rollNo}
+                                            onChange={(e) => setRollNo(e.target.value)}
+                                            placeholder="21XXXXX"
+                                            className="w-full bg-slate-50 border-2 border-slate-50 rounded-3xl py-4 pl-12 pr-4 focus:outline-none focus:border-amber-600/30 focus:ring-8 focus:ring-amber-600/5 transition-all text-sm font-bold placeholder:text-slate-300"
+                                            required={role === "student"}
+                                        />
+                                    </div>
                                 </div>
-                            </div>
+                            )}
                         </div>
 
                         <div className="space-y-3">
@@ -166,7 +203,7 @@ export default function SignupPage() {
                                 <Loader2 className="animate-spin" size={22} />
                             ) : (
                                 <>
-                                    Complete Classroom Registration
+                                    Complete {role === "student" ? "Student" : "Teacher"} Registration
                                     <ArrowRight size={22} />
                                 </>
                             )}

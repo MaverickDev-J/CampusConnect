@@ -13,7 +13,7 @@ export interface SignupRequest {
     email: string;
     name: string;
     password: string;
-    role: "student"; // only students can self-register
+    role: "student" | "teacher";
     profile?: {
         roll_no?: string;
         [key: string]: any;

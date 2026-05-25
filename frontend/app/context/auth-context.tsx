@@ -36,6 +36,7 @@ interface AuthContextType {
         name: string,
         email: string,
         password: string,
+        role: "student" | "teacher",
         profileData?: { roll_no?: string }
     ) => Promise<void>;
     demoLogin: () => Promise<void>;
@@ -126,18 +127,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             name: string,
             email: string,
             password: string,
+            role: "student" | "teacher",
             profileData?: { roll_no?: string }
         ) => {
             setError(null);
             setLoading(true);
 
             try {
-                // 1. Register (Role is hardcoded to student in api layer or inferred)
+                // 1. Register (using selected student or teacher role)
                 await apiSignup({
                     name,
                     email,
                     password,
-                    role: "student",
+                    role,
                     profile: profileData,
                 });
 
