@@ -84,11 +84,15 @@ class ConnectionManager:
 
     async def publish_update(self, classroom_id: str, payload: dict):
         """Utility to publish an update to Redis (accessible from any process)."""
-        redis_client = await get_redis()
-        message = {
-            "classroom_id": classroom_id,
-            "payload": payload
-        }
-        await redis_client.publish("classroom_updates", json.dumps(message))
+        try:
+            redis_client = await get_redis()
+            message = {
+                "classroom_id": classroom_id,
+                "payload": payload
+            }
+            await redis_client.publish("classroom_updates", json.dumps(message))
+        except Exception as e:
+            # Redis is optional for real-time — don't crash the request
+            logger.warning("[publish_update] Redis publish failed (non-fatal): %s", e)
 
 manager = ConnectionManager()
