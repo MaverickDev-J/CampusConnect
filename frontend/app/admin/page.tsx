@@ -66,7 +66,7 @@ export default function AdminPage() {
         setError("");
         setSuccess("");
         try {
-            const res = await fetch("http://localhost:8000/api/superadmin/provision-teacher", {
+            const res = await fetch(`${API_BASE_URL}/api/superadmin/provision-teacher`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
