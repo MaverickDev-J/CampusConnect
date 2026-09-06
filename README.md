@@ -2,7 +2,7 @@
 
 ### AI-Powered Multi-Tenant Campus Learning Platform
 
-[![Live Demo](https://img.shields.io/badge/%F0%9F%9A%80_Live_Demo-Click_Here-blue?style=for-the-badge)](http://165.22.220.229)
+[![Live Demo](https://img.shields.io/badge/%F0%9F%9A%80_Live_Demo-Click_Here-blue?style=for-the-badge)](https://yjoy1572--campusconnect-frontend-web.modal.run)
 
 CampusConnect is a distributed, classroom-scoped AI tutoring system. When teachers upload course materials, students instantly get access to a scoped AI tutor with real-time updates, background processing, and cost-optimized LLM routing.
 

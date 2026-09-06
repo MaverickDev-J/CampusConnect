@@ -1,27 +1,14 @@
 """
-llm_router.py — Production-grade Gemini Key Rotation & Isolated Model Pools
-============================================================================
+llm_router.py — Gemini Key Rotation & Model Fallback
+====================================================
 
-Three independent key pools that prevent cross-contamination of rate limits:
+Three independent key pools (Router, Chat, Ingestion) that fall back
+to a single GEMINI_API_KEY when pool-specific keys aren't set.
 
-  POOL 1 — ROUTER_KEYS    : Fast classification. Cheap, lightweight models.
-  POOL 2 — CHAT_KEYS      : Chat synthesis & embeddings. Quality + stability.
-  POOL 3 — INGESTION_KEYS : PDF extraction. Multimodal-capable models.
-
-Each pool reads from its own env var, then falls back to the shared pool:
-  GEMINI_ROUTER_KEYS      → GEMINI_API_KEYS → GEMINI_API_KEY
-  GEMINI_CHAT_KEYS        → GEMINI_API_KEYS → GEMINI_API_KEY
-  GEMINI_INGESTION_KEYS   → GEMINI_API_KEYS → GEMINI_API_KEY
-
-This means you can run with a single key (all pools fall back to it),
-or distribute load across multiple keys per pool.
-
-MODEL CHAINS (ordered: best first, most stable last):
-  ROUTER_CHAIN     : [gemini-2.0-flash-lite, gemini-1.5-flash-8b, gemini-1.5-flash]
-  CHAT_CHAIN       : [gemini-1.5-flash, gemini-1.5-pro, gemini-2.0-flash]
-  INGESTION_CHAIN  : [gemini-2.0-flash, gemini-1.5-pro, gemini-1.5-flash]
-
-Note: gemini-2.5-flash is experimental — excluded from all primary chains.
+MODEL CHAINS (ordered: primary → fallback):
+  ROUTER_CHAIN     : [gemini-3.8-flash, gemini-3.7-flash]
+  CHAT_CHAIN       : [gemini-3.8-flash, gemini-3.7-flash]
+  INGESTION_CHAIN  : [gemini-3.8-flash, gemini-3.7-flash]
 """
 
 from __future__ import annotations
@@ -159,29 +146,24 @@ key_manager = chat_key_manager
 
 # Lightweight, deterministic. Used by router_node.
 ROUTER_MODEL_CHAIN: List[str] = [
-    "gemini-2.5-flash-lite",   # Fastest free-tier model, best at structured JSON
-    "gemini-2.5-flash",        # High-quota, reliable fallback
-    "gemini-2.5-flash-lite",   # Safe duplicate fallback
+    "gemini-3.8-flash",        # Latest: fastest + smartest free-tier model (Sept 2026)
+    "gemini-3.7-flash",        # Stable fallback
 ]
 
 # ─────────────────────────────────────────────────────────────
 # CHAT_MODEL_CHAIN → Final answer generation (synthesis_node)
-# Balanced quality + speed
 # ─────────────────────────────────────────────────────────────
 CHAT_MODEL_CHAIN: List[str] = [
-    "gemini-2.5-flash",        # Primary: best quality/speed balance on free tier
-    "gemini-1.5-pro",          # Higher reasoning quality when Flash is rate-limited
-    "gemini-2.5-flash",        # Safe duplicate fallback
+    "gemini-3.8-flash",        # Primary: best quality/speed balance on free tier
+    "gemini-3.7-flash",        # Stable fallback when 3.8 is rate-limited
 ]
 
 # ─────────────────────────────────────────────────────────────
 # INGESTION_MODEL_CHAIN → PDF/Image parsing (multimodal)
-# Used by Celery ingestion task + Gemini File API
 # ─────────────────────────────────────────────────────────────
 INGESTION_MODEL_CHAIN: List[str] = [
-    "gemini-2.5-flash",        # Strongest free-tier multimodal (tables, diagrams, formulas, scans)
-    "gemini-1.5-pro",          # Proven high-quality fallback
-    "gemini-2.5-flash",        # Safe duplicate fallback
+    "gemini-3.8-flash",        # Best multimodal (tables, diagrams, formulas, scans)
+    "gemini-3.7-flash",        # Stable fallback
 ]
 
 # ══════════════════════════════════════════════════════════════════════
