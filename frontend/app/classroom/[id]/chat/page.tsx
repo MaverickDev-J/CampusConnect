@@ -103,9 +103,9 @@ export default function ClassroomChatPage({ params }: { params: Promise<{ id: st
 
     useEffect(() => {
         const fetchPrompts = async () => {
+            const token = user?.token;
+            if (!token) return;
             try {
-                const token = localStorage.getItem("token");
-                if (!token) return;
                 const res = await fetch(
                     `${require("@/app/config").API_BASE_URL}/api/chat/quick-prompts?classroom_id=${classroomId}`,
                     { headers: { Authorization: `Bearer ${token}` } }
@@ -121,7 +121,7 @@ export default function ClassroomChatPage({ params }: { params: Promise<{ id: st
             }
         };
         fetchPrompts();
-    }, [classroomId]);
+    }, [classroomId, user?.token]);
 
     return (
         <div className="h-screen flex overflow-hidden">

@@ -135,14 +135,18 @@ ALLOWED_ORIGINS = [
     "http://localhost:3001",
     "http://127.0.0.1:3000",
 ]
-# Add production domain from env if set
+# Add production domain(s) from env if set (supports comma-separated list)
 _prod_origin = _os.getenv("CORS_ORIGIN")
 if _prod_origin:
-    ALLOWED_ORIGINS.append(_prod_origin)
+    for _origin in _prod_origin.split(","):
+        _cleaned = _origin.strip()
+        if _cleaned and _cleaned not in ALLOWED_ORIGINS and _cleaned != "*":
+            ALLOWED_ORIGINS.append(_cleaned)
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
+    allow_origin_regex=r"^https://.*\.vercel\.app$|^http://(localhost|127\.0\.0\.1)(:\d+)?$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

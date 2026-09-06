@@ -18,9 +18,15 @@ campus_collection: Collection = None  # type: ignore[assignment]
 
 
 def connect_chroma() -> None:
-    """Connect to ChromaDB server and get or create the collection."""
+    """Connect to ChromaDB server or local/volume persistent storage."""
     global chroma_client, campus_collection
-    chroma_client = chromadb.HttpClient(host=CHROMA_HOST, port=CHROMA_PORT)
+    persist_dir = os.getenv("CHROMA_PERSIST_DIR")
+    if persist_dir:
+        os.makedirs(persist_dir, exist_ok=True)
+        chroma_client = chromadb.PersistentClient(path=persist_dir)
+    else:
+        chroma_client = chromadb.HttpClient(host=CHROMA_HOST, port=CHROMA_PORT)
+
     campus_collection = chroma_client.get_or_create_collection(
         name=COLLECTION_NAME,
         metadata={"hnsw:space": "cosine"},

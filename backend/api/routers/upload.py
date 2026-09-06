@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 
 # ── Constants ────────────────────────────────────────────────────────
 
-STORAGE_BASE = Path("storage")
+STORAGE_BASE = Path(os.getenv("STORAGE_DIR", "storage"))
 TEMP_DIR = STORAGE_BASE / "temp"
 UPLOAD_DIR = STORAGE_BASE / "uploads"
 
@@ -201,9 +201,18 @@ async def upload_file(
             permanent_path.unlink()
         raise HTTPException(status_code=500, detail=f"Failed to save file metadata: {e}")
 
-    # ⑧ Trigger background ingestion
-    from api.services.ingestion import process_file_task
-    process_file_task.delay(file_id)
+    # ⑧ Trigger background ingestion (Celery with async fallback for serverless)
+    try:
+        from api.services.ingestion import process_file_task
+        process_file_task.delay(file_id)
+    except Exception as exc:
+        logger.warning(
+            "[upload] Celery dispatch failed (%s), running via in-process async task",
+            exc,
+        )
+        import asyncio
+        from api.services.ingestion import _process_file_async
+        asyncio.create_task(_process_file_async(file_id))
 
     return {
         "file_id": file_id,
