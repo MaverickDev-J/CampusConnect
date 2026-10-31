@@ -38,9 +38,9 @@ and classroom routes, file upload/list/detail/download/retry, and chat session/
 history/SSE routes, plus `/health`. It rejects owner/bypass-RLS connections at
 startup. Production `main:app` still uses the legacy store; the staging entrypoint
 is for migration verification and will gain the remaining routes before cutover.
-Keep it local until rate limiting, hosted CORS configuration, remaining routes, and deployment checks
-are complete. Classroom deletion currently rejects classrooms with uploaded files
-until durable file cleanup is migrated. No physical files are deleted by this slice.
+Keep it local until rate limiting, hosted CORS/origin configuration, remaining routes,
+and deployment checks are complete. Migration 006 enables safe file/classroom
+deletion and the PostgreSQL WebSocket gateway.
 Local frontend ports 3000/3001 are allowed by staging CORS. Set the frontend's
 NEXT_PUBLIC_API_URL to `http://localhost:8001` when verifying the migrated routes.
 
@@ -89,7 +89,20 @@ Global calendar events require a superadmin. Classroom members can read scoped
 events and announcements; notifications are visible only to their recipient while
 that recipient retains classroom access. Deleting an announcement preserves its
 underlying document because files can be shared by multiple posts and sessions.
-Dedicated file cleanup remains a separate migration task.
+`DELETE /api/files/{file_id}` now queues explicit document cleanup (202). In the
+same transaction, the source becomes unavailable to list/download/retrieval,
+ingestion jobs are cancelled, and chunk/revision rows are removed. Historical chat
+transcripts are retained; their prior generated content is not source retrieval.
+Classroom deletion queues all document paths before cascading database records.
+The cleanup queue deliberately survives removal of the classroom and uploader.
+
+The outbox worker also processes physical cleanup. It resolves each path against
+the configured STORAGE_DIR, rejects external/symlink paths, checks active file
+references, and unlinks only individual queued files. Missing files count as
+success after a crash between unlink and acknowledgement. Failed cleanup retries
+after 30 seconds with at most five attempts; inspect exhausted rows before requeue.
+Run it with the same mounted storage root as the API/ingestion worker and reapply
+worker grants after migration. No recursive directory deletion is performed.
 
 Run event delivery separately using a restricted worker login with
 `runtime_grants.sql` plus `worker_grants.sql`, and DATABASE_URL / REDIS_URL:
@@ -104,8 +117,22 @@ after 30 seconds, with at most five attempts. Operators can inspect undelivered
 outbox rows and deliberately requeue exhausted work. Publish is at least once;
 clients should deduplicate event IDs and refresh authoritative REST state after
 reconnecting. Notification records remain durable even when no subscriber is
-connected. The staging WebSocket gateway still needs migration before these
-updates reach its browser clients.
+connected.
+
+The PostgreSQL gateway now serves `/ws/classroom/{classroom_id}?token=...` using
+the existing handshake/ping/pong contract. It subscribes before acknowledging the
+connection, checks token expiry and live PostgreSQL membership at connection,
+heartbeats, every relevant update, and at least every 15 seconds while idle.
+Revoked connections close with 4003; Redis outages close with 1013 so the existing
+client backoff reconnects. A `global_events` subscription receives only global or
+currently authorized classroom calendar updates. Local browser origins 3000/3001
+are allowed; hosted origins must be configured before deployment. Set the local
+frontend NEXT_PUBLIC_WS_URL to `ws://localhost:8001` when checking staging.
+
+To include the actual local Redis-to-WebSocket integration in the backend suite,
+set TEST_REDIS_URL to `redis://127.0.0.1:6380/15`; otherwise that test is explicitly
+skipped. The other gateway tests use a controlled event transport plus real
+PostgreSQL membership checks.
 
 Integration tests require an explicitly selected disposable database and a test
 owner that can create temporary roles. SQL fixtures are rolled back; API fixtures

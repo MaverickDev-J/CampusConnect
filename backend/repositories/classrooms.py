@@ -73,9 +73,8 @@ class PostgresClassrooms:
                 raise HTTPException(404, "Classroom not found")
             if principal["role"] != "superadmin" and row.created_by != principal["user_id"]:
                 raise HTTPException(403, "Only the classroom creator or admin can delete it")
-            # File cleanup needs a durable outbox before this route can delete uploads.
-            files = (await session.execute(text("SELECT count(*) FROM files WHERE classroom_id=:id"), {"id": classroom_id})).scalar_one()
-            if files:
-                raise HTTPException(409, "Classroom file cleanup is not migrated yet")
+            files = (await session.execute(text("SELECT file_id FROM files WHERE classroom_id=:id ORDER BY file_id"), {'id':classroom_id})).scalars().all()
+            for file_id in files:
+                await session.execute(text('SELECT public.queue_file_cleanup(:id)'), {'id':file_id})
             await session.execute(text("DELETE FROM classrooms WHERE classroom_id=:id"), {"id": classroom_id})
         return {"message": "Classroom deleted", "classroom_id": classroom_id}

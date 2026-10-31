@@ -38,6 +38,7 @@ class PostgresApiFixture(unittest.IsolatedAsyncioTestCase):
                 if statement.strip():
                     connection.execute(statement.replace(':"runtime_role"', sql.Identifier(self.role).as_string(connection)))
         runtime_url = make_url(self.owner_url).set(username=self.role, password=self.password).render_as_string(hide_password=False)
+        self.runtime_url = runtime_url
         self.stack = AsyncExitStack()
         await self.stack.__aenter__()
         # Integration tests use fake model adapters and must not initialize live
@@ -58,6 +59,7 @@ class PostgresApiFixture(unittest.IsolatedAsyncioTestCase):
             await self.stack.aclose()
         finally:
             with psycopg.connect(self.owner_url) as connection:
+                connection.execute("DELETE FROM storage_cleanup WHERE actor_id IN (SELECT user_id FROM users WHERE email LIKE %s)", (f"%{self.tag}@example.com",))
                 connection.execute("DELETE FROM calendar_events WHERE created_by IN (SELECT user_id FROM users WHERE email LIKE %s)", (f"%{self.tag}@example.com",))
                 connection.execute("DELETE FROM classrooms WHERE created_by IN (SELECT user_id FROM users WHERE email LIKE %s)", (f"%{self.tag}@example.com",))
                 connection.execute("DELETE FROM users WHERE email LIKE %s", (f"%{self.tag}@example.com",))

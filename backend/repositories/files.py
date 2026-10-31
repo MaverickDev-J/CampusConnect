@@ -61,3 +61,10 @@ class PostgresFiles:
         await self.authorize(principal, document["classroom_id"], write=True)
         async with principal_session(self.factory, principal["user_id"]) as session:
             await session.execute(text("SELECT public.retry_ingestion_job(:id)"), {"id": file_id})
+
+    async def delete(self, principal, file_id):
+        document = await self.get(principal, file_id)
+        await self.authorize(principal, document['classroom_id'], write=True)
+        async with principal_session(self.factory, principal['user_id']) as session:
+            await session.execute(text('SELECT public.queue_file_cleanup(:id)'), {'id':file_id})
+        return {'status':'deleted', 'file_id':file_id, 'cleanup_status':'queued'}

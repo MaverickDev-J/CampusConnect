@@ -101,3 +101,8 @@ async def download(file_id: str, request: Request, token: str | None = None, inl
 async def retry(file_id: str, request: Request, principal=Depends(get_current_user)):
     await request.app.state.files.retry(principal, file_id)
     return {"message": "Retry triggered", "status": "pending"}
+
+
+@router.delete('/api/files/{file_id}', status_code=202)
+async def remove_file(file_id: str, request: Request, principal=Depends(get_current_user)):
+    return await request.app.state.files.delete(principal, file_id)

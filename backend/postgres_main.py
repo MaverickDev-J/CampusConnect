@@ -22,6 +22,8 @@ from repositories.files import PostgresFiles
 from api.routers import postgres_files
 from api.routers import postgres_chat
 from api.routers import postgres_campus
+from api.routers import postgres_socket
+from redis.asyncio import Redis
 from api.services.campus_actions import CampusActions
 from repositories.chat import PostgresChat
 from api.agent.postgres_graph import PostgresRag, GeminiAnswer
@@ -30,7 +32,7 @@ from api.services.retrieval.ranking import GeminiReranker
 from google import genai
 
 
-def create_app(database_url=None, *, storage_root=None):
+def create_app(database_url=None, *, storage_root=None, redis_url=None):
     @asynccontextmanager
     async def lifespan(app):
         url = database_url or os.environ.get("DATABASE_URL")
@@ -48,7 +50,7 @@ def create_app(database_url=None, *, storage_root=None):
                 if role:
                     raise RuntimeError("PostgreSQL runtime must be a non-owner role without RLS bypass")
                 version = (await connection.execute(text("SELECT version_num FROM alembic_version"))).scalar_one()
-                if version != "005_campus_actions":
+                if version != "006_cleanup":
                     raise RuntimeError("Apply the expected database migrations before starting")
             app.state.accounts = PostgresAccounts(factory)
             app.state.classrooms = PostgresClassrooms(factory)
@@ -61,8 +63,12 @@ def create_app(database_url=None, *, storage_root=None):
             app.state.actions = CampusActions(factory)
             app.state.rag = PostgresRag(factory, GeminiEmbeddings(client), GeminiReranker(client) if client else None)
             app.state.answer = GeminiAnswer(client)
+            app.state.ws_redis = Redis.from_url(redis_url or settings.REDIS_URL, decode_responses=True, socket_connect_timeout=5, socket_timeout=5)
+            app.state.ws_origins = [f'http://{host}:{port}' for host in ('localhost','127.0.0.1') for port in (3000,3001)]
             yield
         finally:
+            if hasattr(app.state,'ws_redis'):
+                await app.state.ws_redis.aclose()
             if client:
                 await client.aio.aclose()
             await engine.dispose()
@@ -89,6 +95,7 @@ def create_app(database_url=None, *, storage_root=None):
     app.include_router(postgres_files.router)
     app.include_router(postgres_chat.router)
     app.include_router(postgres_campus.router)
+    app.include_router(postgres_socket.router)
 
     @app.get("/health")
     async def health():

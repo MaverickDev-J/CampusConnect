@@ -21,3 +21,5 @@ GRANT SELECT,INSERT,DELETE ON announcements,calendar_events TO :"runtime_role";
 GRANT SELECT,INSERT ON notifications,campus_outbox TO :"runtime_role";
 GRANT UPDATE (is_read) ON notifications TO :"runtime_role";
 GRANT SELECT,INSERT,UPDATE ON campus_operations TO :"runtime_role";
+GRANT SELECT ON storage_cleanup TO :"runtime_role";
+GRANT EXECUTE ON FUNCTION public.queue_file_cleanup(text) TO :"runtime_role";

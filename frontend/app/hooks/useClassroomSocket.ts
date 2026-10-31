@@ -64,7 +64,7 @@ export function useClassroomSocket(
                 }
 
                 // 4001 = auth failed, 4003 = not a member — don't auto-reconnect
-                if (event.code === 4001 || event.code === 4003) {
+                if (event.code === 4001 || event.code === 4003 || event.code === 4004) {
                     console.error(`[useClassroomSocket] ⛔ Auth/permission denied (${event.code}): ${event.reason}. Not reconnecting.`);
                     return;
                 }
@@ -86,7 +86,6 @@ export function useClassroomSocket(
                 const states = ["CONNECTING", "OPEN", "CLOSING", "CLOSED"];
                 console.error(`[useClassroomSocket] ❌ Error (State: ${states[ws?.readyState ?? 3]})`, {
                     type: err.type,
-                    target: err.target?.url,
                 });
             };
         };

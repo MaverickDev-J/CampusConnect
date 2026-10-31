@@ -8,6 +8,7 @@ import sys
 from dotenv import load_dotenv
 from redis.asyncio import Redis
 from api.services.campus_outbox import CampusOutbox
+from api.services.storage_cleanup import StorageCleanup
 from database.postgres import create_session_factory
 
 
@@ -18,10 +19,13 @@ async def main():
     async def publish(classroom, payload):
         await redis.publish('classroom_updates', json.dumps({'classroom_id':classroom, 'payload':payload}))
     dispatcher = CampusOutbox(factory, publish)
+    cleanup = StorageCleanup(factory, os.getenv('STORAGE_DIR','storage'))
     try:
         while True:
             try:
-                if not await dispatcher.run_once():
+                delivered = await dispatcher.run_once()
+                cleaned = await cleanup.run_once()
+                if not delivered and not cleaned:
                     await asyncio.sleep(2)
             except Exception:
                 logging.warning('Campus outbox unavailable; retrying')
