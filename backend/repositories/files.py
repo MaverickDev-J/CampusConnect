@@ -10,11 +10,14 @@ class PostgresFiles:
 
     async def authorize(self, principal, classroom_id, *, write=False):
         async with principal_session(self.factory, principal["user_id"]) as session:
-            allowed = (await session.execute(text(
-                "SELECT public.can_write_classroom(:id)" if write else "SELECT public.can_read_classroom(:id)"
-            ), {"id": classroom_id})).scalar_one()
-            if not allowed:
-                raise HTTPException(403, "Classroom access denied")
+            await self.authorize_in_session(session, classroom_id, write=write)
+
+    async def authorize_in_session(self, session, classroom_id, *, write=False):
+        allowed = (await session.execute(text(
+            "SELECT public.can_write_classroom(:id)" if write else "SELECT public.can_read_classroom(:id)"
+        ), {"id": classroom_id})).scalar_one()
+        if not allowed:
+            raise HTTPException(403, "Classroom access denied")
 
     async def register(self, principal, document):
         async with principal_session(self.factory, principal["user_id"]) as session:

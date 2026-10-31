@@ -75,7 +75,7 @@ an exclusive expiring lease, and user/assistant history is committed atomically
 after generation succeeds. Provider failures return the existing SSE error/done
 contract without persisting incomplete answers. Source revisions are rechecked
 before saving a completed turn. The API provider quota budget, full source-quality
-evaluation, WebSocket update support, and final hosted worker topology remain
+evaluation and final hosted worker topology remain
 release gates. File-list polling keeps pending upload status visible locally.
 
 Campus actions create their notification records in the same database transaction.
@@ -83,7 +83,8 @@ An optional `Idempotency-Key` header makes repeated requests return the original
 result; reusing that key for different content returns 409. The shared
 `CampusActions.revision_session` service commits an announcement, event, recipient
 notifications, and outbox records atomically. It is not exposed as an unapproved
-MCP write tool; approval verification will be added by the faculty workflow.
+MCP write tool; the faculty workflow now enforces approval before using that
+transaction primitive.
 
 Global calendar events require a superadmin. Classroom members can read scoped
 events and announcements; notifications are visible only to their recipient while
@@ -133,6 +134,49 @@ To include the actual local Redis-to-WebSocket integration in the backend suite,
 set TEST_REDIS_URL to `redis://127.0.0.1:6380/15`; otherwise that test is explicitly
 skipped. The other gateway tests use a controlled event transport plus real
 PostgreSQL membership checks.
+
+Migration 007 adds faculty drafts and PostgreSQL LangGraph checkpoints. Reapply
+`runtime_grants.sql` after upgrading. Checkpoint tables use owner/classroom RLS;
+the API never runs checkpointer setup or owns those tables. Draft preparation
+retrieves evidence through authenticated MCP, calls Gemini once with a bounded
+structured response, then persists a draft and pauses at human review. A failed
+provider request does not create campus actions. Drafts expire after 24 hours.
+
+The staging API mounts stateless JSON Streamable HTTP MCP at `/mcp/`. Obtain a
+ten-minute MCP credential from `POST /api/mcp/token` using an API access token.
+MCP tokens validate issuer, audience, expiry and scope, and cannot access the
+human review API. Roles and resource permissions come from current PostgreSQL
+records. This is a first-party credential exchange, not generic remote OAuth
+onboarding. Do not put either token in URLs, graph state, or source control.
+
+The curated tools are `list_courses`, `search_documents`, `get_document`,
+`prepare_revision_session`, `get_workflow_status`, and
+`execute_approved_revision_session`. There is no approval tool. Use the independent
+client from the backend directory with CAMPUS_API_TOKEN set in your environment:
+
+```powershell
+uv run python -m scripts.mcp_client list_courses
+```
+
+Enable the local frontend review panel with NEXT_PUBLIC_FACULTY_WORKFLOWS=true
+and the API/WS URLs above before starting or building Next.js. Teachers see the
+panel inside a classroom; server permissions restrict drafts to the classroom's
+faculty owner or a superadmin. The panel restores saved drafts, shows source
+excerpts/pages, supports editing and rejection, and separates approval from
+posting. An edit increments the revision and clears approval. Approve/reject
+requests must supply the current version and payload hash. Expired drafts,
+changed source revisions, lost permissions, and past session dates block writes.
+
+Execution locks the owned workflow row. Domain actions, notifications, outbox
+records, completion state and graph checkpoints share one database transaction
+and connection. Checkpoint pipelines are disabled and checkpoint/node SQL is
+serialized on that connection. A failure rolls everything back; retries resume
+the saved interrupt and use a deterministic operation key. Completed retries
+return the same IDs. Notification delivery remains at least once via the outbox;
+the workflow does not claim exactly-once external delivery. Local Edge browser
+smoke checks use controlled API responses; backend integration tests use real
+PostgreSQL and MCP with controlled generation. Hosting, live Gemini draft quality,
+hosted browser verification, and the run timeline remain release gates.
 
 Integration tests require an explicitly selected disposable database and a test
 owner that can create temporary roles. SQL fixtures are rolled back; API fixtures

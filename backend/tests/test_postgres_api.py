@@ -1,6 +1,6 @@
 """Real HTTP contract checks using a restricted PostgreSQL login role."""
 import asyncio
-from contextlib import AsyncExitStack
+from contextlib import AsyncExitStack, asynccontextmanager
 import os
 from pathlib import Path
 import secrets
@@ -22,6 +22,32 @@ from postgres_main import create_app
 
 if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
+
+@asynccontextmanager
+async def running_app(app):
+    """Keep ASGI lifespan task groups in one task across unittest setup/teardown."""
+    ready = asyncio.get_running_loop().create_future()
+    stop = asyncio.Event()
+
+    async def run():
+        try:
+            async with app.router.lifespan_context(app):
+                ready.set_result(None)
+                await stop.wait()
+        except BaseException as exc:
+            if not ready.done():
+                ready.set_exception(exc)
+            else:
+                raise
+
+    task = asyncio.create_task(run())
+    try:
+        await ready
+        yield app
+    finally:
+        stop.set()
+        await task
 
 
 @unittest.skipUnless(os.getenv("TEST_DATABASE_URL"), "Set TEST_DATABASE_URL for API integration")
@@ -51,7 +77,7 @@ class PostgresApiFixture(unittest.IsolatedAsyncioTestCase):
         test_root.mkdir(parents=True, exist_ok=True)
         self.storage = self.stack.enter_context(tempfile.TemporaryDirectory(dir=test_root))
         self.app = create_app(runtime_url, storage_root=self.storage)
-        await self.stack.enter_async_context(self.app.router.lifespan_context(self.app))
+        await self.stack.enter_async_context(running_app(self.app))
         self.client = await self.stack.enter_async_context(httpx.AsyncClient(transport=httpx.ASGITransport(app=self.app), base_url="http://test"))
 
     async def asyncTearDown(self):

@@ -37,6 +37,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { Sidebar } from "@/app/components/Sidebar";
 import { useClassroomSocket } from "@/app/hooks/useClassroomSocket";
+import RevisionSessionPanel from "@/app/components/RevisionSessionPanel";
 
 export default function ClassroomPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
@@ -355,6 +356,12 @@ export default function ClassroomPage({ params }: { params: Promise<{ id: string
 
                         {/* Stream / Announcements Column */}
                         <div className="lg:col-span-3 space-y-8">
+                            {isTeacher && user?.token && process.env.NEXT_PUBLIC_FACULTY_WORKFLOWS === "true" && (
+                                <RevisionSessionPanel classroomId={id} token={user.token} onPublished={() => {
+                                    refreshAnnouncements();
+                                    fetchClassroomEvents();
+                                }} />
+                            )}
                             {/* Announce Box - Teacher Action */}
                             {isTeacher && (
                                 <motion.div 

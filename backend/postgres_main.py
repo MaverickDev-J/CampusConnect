@@ -30,6 +30,11 @@ from api.agent.postgres_graph import PostgresRag, GeminiAnswer
 from api.services.retrieval.embeddings import GeminiEmbeddings
 from api.services.retrieval.ranking import GeminiReranker
 from google import genai
+from api.services.campus_documents import CampusDocuments
+from api.agent.faculty_workflow import FacultyWorkflow, GeminiDraftGenerator
+from api.routers import workflows
+from mcp_server.server import create_mcp
+from mcp_server.client import McpDocumentsClient
 
 
 def create_app(database_url=None, *, storage_root=None, redis_url=None):
@@ -50,7 +55,7 @@ def create_app(database_url=None, *, storage_root=None, redis_url=None):
                 if role:
                     raise RuntimeError("PostgreSQL runtime must be a non-owner role without RLS bypass")
                 version = (await connection.execute(text("SELECT version_num FROM alembic_version"))).scalar_one()
-                if version != "006_cleanup":
+                if version != "007_workflows":
                     raise RuntimeError("Apply the expected database migrations before starting")
             app.state.accounts = PostgresAccounts(factory)
             app.state.classrooms = PostgresClassrooms(factory)
@@ -63,9 +68,12 @@ def create_app(database_url=None, *, storage_root=None, redis_url=None):
             app.state.actions = CampusActions(factory)
             app.state.rag = PostgresRag(factory, GeminiEmbeddings(client), GeminiReranker(client) if client else None)
             app.state.answer = GeminiAnswer(client)
+            app.state.documents = CampusDocuments(factory, app.state.rag, app.state.files)
+            app.state.workflows = FacultyWorkflow(factory, McpDocumentsClient(app), app.state.actions, GeminiDraftGenerator(client))
             app.state.ws_redis = Redis.from_url(redis_url or settings.REDIS_URL, decode_responses=True, socket_connect_timeout=5, socket_timeout=5)
             app.state.ws_origins = [f'http://{host}:{port}' for host in ('localhost','127.0.0.1') for port in (3000,3001)]
-            yield
+            async with mcp_app.lifespan(app):
+                yield
         finally:
             if hasattr(app.state,'ws_redis'):
                 await app.state.ws_redis.aclose()
@@ -74,6 +82,9 @@ def create_app(database_url=None, *, storage_root=None, redis_url=None):
             await engine.dispose()
 
     app = FastAPI(title="CampusConnect PostgreSQL staging API", lifespan=lifespan)
+    mcp = create_mcp(app)
+    mcp_app = mcp.http_app(path='/', stateless_http=True, json_response=True)
+    app.mount('/mcp', mcp_app)
     app.add_middleware(CORSMiddleware,
         allow_origins=[f"http://{host}:{port}" for host in ("localhost", "127.0.0.1") for port in (3000,3001)],
         allow_credentials=True, allow_methods=["GET","POST","PUT","PATCH","DELETE"],
@@ -96,12 +107,13 @@ def create_app(database_url=None, *, storage_root=None, redis_url=None):
     app.include_router(postgres_chat.router)
     app.include_router(postgres_campus.router)
     app.include_router(postgres_socket.router)
+    app.include_router(workflows.router)
 
     @app.get("/health")
     async def health():
         async with app.state.accounts.factory() as session:
             await session.execute(text("SELECT 1"))
-        return {"status": "ok", "checks": {"postgresql": "ok"}, "migration_stage": "files_chat"}
+        return {"status": "ok", "checks": {"postgresql": "ok"}, "migration_stage": "faculty_workflows"}
 
     return app
 

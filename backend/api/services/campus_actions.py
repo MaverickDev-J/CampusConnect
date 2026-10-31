@@ -96,11 +96,17 @@ class CampusActions:
         if not event.classroom_id or announcement.classroom_id != event.classroom_id:
             raise HTTPException(400, "Both actions require the same classroom")
         async with principal_session(self.factory, principal["user_id"]) as session:
-            await self._authorize(session, event.classroom_id, write=True)
-            result = await self._operation(session, principal, key, {"kind": "revision", "announcement": announcement.model_dump(mode="json"), "event": event.model_dump(mode="json")})
-            if result is not None:
-                return result
-            result = {"announcement": await self._announcement(session, principal, announcement),
-                      "event": await self._calendar(session, principal, event)}
-            await self._result(session, principal, key, result)
+            return await self.revision_in_session(session, principal, announcement, event, key)
+
+    async def revision_in_session(self, session, principal, announcement, event, key):
+        """Internal transaction primitive; workflow owns approval and checkpoint atomicity."""
+        if not event.classroom_id or announcement.classroom_id != event.classroom_id:
+            raise HTTPException(400, "Both actions require the same classroom")
+        await self._authorize(session, event.classroom_id, write=True)
+        result = await self._operation(session, principal, key, {"kind": "revision", "announcement": announcement.model_dump(mode="json"), "event": event.model_dump(mode="json")})
+        if result is not None:
             return result
+        result = {"announcement": await self._announcement(session, principal, announcement),
+                  "event": await self._calendar(session, principal, event)}
+        await self._result(session, principal, key, result)
+        return result
