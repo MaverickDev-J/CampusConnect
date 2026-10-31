@@ -71,6 +71,7 @@ class RankingTests(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(result.fallback_reason)
         self.assertIsNone(result.input_tokens)
         self.assertIsNotNone(self.generate.call_args.kwargs["config"].response_json_schema)
+        self.assertEqual(self.generate.call_args.kwargs["config"].thinking_config.thinking_level.value, "LOW")
         self.generate.assert_awaited_once()
 
     async def test_invalid_ids_duplicates_missing_and_malformed_fall_back(self):

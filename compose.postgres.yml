@@ -1,0 +1,19 @@
+# Local migration database; production Modal functions use DATABASE_URL.
+services:
+  postgres:
+    image: pgvector/pgvector:pg17@sha256:7d0a41464797aeb9862dfdc0bbf1526b82cfd324cdd8036df19e3545f4a9ccb8
+    environment:
+      POSTGRES_USER: campusconnect
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-campusconnect-local}
+      POSTGRES_DB: campusconnect
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U campusconnect -d campusconnect"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+volumes:
+  postgres_data:

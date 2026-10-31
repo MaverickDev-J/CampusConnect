@@ -34,4 +34,8 @@ dependencies = [
     "numpy>=1.26.0",
     "gunicorn>=22.0.0",
     "pymongo>=4.9,<4.10",
+    "sqlalchemy[asyncio]>=2.0,<3",
+    "alembic>=1.14,<2",
+    "psycopg[binary,pool]>=3.2,<4",
+    "pgvector>=0.3,<1",
 ]

@@ -75,8 +75,9 @@ class GeminiReranker:
                     ),
                     response_mime_type="application/json",
                     response_json_schema=RankingResponse.model_json_schema(),
+                    thinking_config=types.ThinkingConfig(thinking_level="low"),
                     temperature=0,
-                    max_output_tokens=256,
+                    max_output_tokens=1024,
                 ),
             ), timeout=self.timeout)
             ranked = RankingResponse.model_validate_json(response.text).ranked_ids
