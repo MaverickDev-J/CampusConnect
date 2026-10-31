@@ -21,6 +21,8 @@ from repositories.classrooms import PostgresClassrooms
 from repositories.files import PostgresFiles
 from api.routers import postgres_files
 from api.routers import postgres_chat
+from api.routers import postgres_campus
+from api.services.campus_actions import CampusActions
 from repositories.chat import PostgresChat
 from api.agent.postgres_graph import PostgresRag, GeminiAnswer
 from api.services.retrieval.embeddings import GeminiEmbeddings
@@ -46,7 +48,7 @@ def create_app(database_url=None, *, storage_root=None):
                 if role:
                     raise RuntimeError("PostgreSQL runtime must be a non-owner role without RLS bypass")
                 version = (await connection.execute(text("SELECT version_num FROM alembic_version"))).scalar_one()
-                if version != "004_files_chat":
+                if version != "005_campus_actions":
                     raise RuntimeError("Apply the expected database migrations before starting")
             app.state.accounts = PostgresAccounts(factory)
             app.state.classrooms = PostgresClassrooms(factory)
@@ -56,6 +58,7 @@ def create_app(database_url=None, *, storage_root=None):
             if key:
                 client = genai.Client(api_key=key.split(',')[0].strip())
             app.state.chat = PostgresChat(factory)
+            app.state.actions = CampusActions(factory)
             app.state.rag = PostgresRag(factory, GeminiEmbeddings(client), GeminiReranker(client) if client else None)
             app.state.answer = GeminiAnswer(client)
             yield
@@ -68,7 +71,7 @@ def create_app(database_url=None, *, storage_root=None):
     app.add_middleware(CORSMiddleware,
         allow_origins=[f"http://{host}:{port}" for host in ("localhost", "127.0.0.1") for port in (3000,3001)],
         allow_credentials=True, allow_methods=["GET","POST","PUT","PATCH","DELETE"],
-        allow_headers=["Authorization","Content-Type"])
+        allow_headers=["Authorization","Content-Type","Idempotency-Key"])
 
     async def current_user(token=Depends(oauth2_scheme)):
         try:
@@ -85,6 +88,7 @@ def create_app(database_url=None, *, storage_root=None):
     app.include_router(classroom.router)
     app.include_router(postgres_files.router)
     app.include_router(postgres_chat.router)
+    app.include_router(postgres_campus.router)
 
     @app.get("/health")
     async def health():

@@ -18,6 +18,9 @@ migration is in progress; these migrations do not switch production traffic.
 Migration 001 creates the first application tables, vector storage, and lexical
 index. Migration 002 adds classroom read policies. Migration 003 adds account and
 classroom write policies and narrow login, registration, and join functions.
+Migration 005 adds announcements, calendar actions, recipient-scoped notifications,
+idempotent operations, and an outbox for committed update events. The staging API
+now mounts those REST routes as well.
 Provision a separate non-owner login role and apply `runtime_grants.sql` with psql's
 `runtime_role` variable set to that role. Never run the API as the migration owner.
 Runtime credentials cannot select the password-hash column or update user roles.
@@ -74,6 +77,35 @@ contract without persisting incomplete answers. Source revisions are rechecked
 before saving a completed turn. The API provider quota budget, full source-quality
 evaluation, WebSocket update support, and final hosted worker topology remain
 release gates. File-list polling keeps pending upload status visible locally.
+
+Campus actions create their notification records in the same database transaction.
+An optional `Idempotency-Key` header makes repeated requests return the original
+result; reusing that key for different content returns 409. The shared
+`CampusActions.revision_session` service commits an announcement, event, recipient
+notifications, and outbox records atomically. It is not exposed as an unapproved
+MCP write tool; approval verification will be added by the faculty workflow.
+
+Global calendar events require a superadmin. Classroom members can read scoped
+events and announcements; notifications are visible only to their recipient while
+that recipient retains classroom access. Deleting an announcement preserves its
+underlying document because files can be shared by multiple posts and sessions.
+Dedicated file cleanup remains a separate migration task.
+
+Run event delivery separately using a restricted worker login with
+`runtime_grants.sql` plus `worker_grants.sql`, and DATABASE_URL / REDIS_URL:
+
+```powershell
+uv run python outbox_worker.py
+```
+
+The dispatcher leases events, publishes to the existing `classroom_updates` Redis
+channel, and records success only after publish succeeds. Failed delivery retries
+after 30 seconds, with at most five attempts. Operators can inspect undelivered
+outbox rows and deliberately requeue exhausted work. Publish is at least once;
+clients should deduplicate event IDs and refresh authoritative REST state after
+reconnecting. Notification records remain durable even when no subscriber is
+connected. The staging WebSocket gateway still needs migration before these
+updates reach its browser clients.
 
 Integration tests require an explicitly selected disposable database and a test
 owner that can create temporary roles. SQL fixtures are rolled back; API fixtures

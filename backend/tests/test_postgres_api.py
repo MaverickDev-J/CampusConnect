@@ -40,6 +40,11 @@ class PostgresApiFixture(unittest.IsolatedAsyncioTestCase):
         runtime_url = make_url(self.owner_url).set(username=self.role, password=self.password).render_as_string(hide_password=False)
         self.stack = AsyncExitStack()
         await self.stack.__aenter__()
+        # Integration tests use fake model adapters and must not initialize live
+        # provider clients from a developer's environment.
+        self.stack.enter_context(patch.dict(os.environ, {
+            'GEMINI_API_KEY':'', 'GEMINI_API_KEYS':'', 'GEMINI_CHAT_KEYS':'',
+        }))
         self.stack.enter_context(patch.object(settings, "JWT_SECRET", "integration-test-secret-" + "x" * 32))
         test_root = (Path(__file__).parents[1] / "storage" / "integration-tests").resolve()
         test_root.mkdir(parents=True, exist_ok=True)
@@ -53,6 +58,7 @@ class PostgresApiFixture(unittest.IsolatedAsyncioTestCase):
             await self.stack.aclose()
         finally:
             with psycopg.connect(self.owner_url) as connection:
+                connection.execute("DELETE FROM calendar_events WHERE created_by IN (SELECT user_id FROM users WHERE email LIKE %s)", (f"%{self.tag}@example.com",))
                 connection.execute("DELETE FROM classrooms WHERE created_by IN (SELECT user_id FROM users WHERE email LIKE %s)", (f"%{self.tag}@example.com",))
                 connection.execute("DELETE FROM users WHERE email LIKE %s", (f"%{self.tag}@example.com",))
                 connection.execute(sql.SQL("DROP OWNED BY {}").format(sql.Identifier(self.role)))

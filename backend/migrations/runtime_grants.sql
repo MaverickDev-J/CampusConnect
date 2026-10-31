@@ -17,3 +17,7 @@ GRANT SELECT ON ingestion_jobs TO :"runtime_role";
 GRANT SELECT,INSERT,UPDATE,DELETE ON chat_sessions,chat_messages TO :"runtime_role";
 GRANT USAGE,SELECT ON SEQUENCE chat_messages_message_id_seq TO :"runtime_role";
 GRANT EXECUTE ON FUNCTION public.can_write_classroom(text), public.retry_ingestion_job(text) TO :"runtime_role";
+GRANT SELECT,INSERT,DELETE ON announcements,calendar_events TO :"runtime_role";
+GRANT SELECT,INSERT ON notifications,campus_outbox TO :"runtime_role";
+GRANT UPDATE (is_read) ON notifications TO :"runtime_role";
+GRANT SELECT,INSERT,UPDATE ON campus_operations TO :"runtime_role";
