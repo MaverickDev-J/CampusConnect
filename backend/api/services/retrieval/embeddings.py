@@ -5,6 +5,7 @@ import math
 from dataclasses import dataclass
 
 from google.genai import types
+from core.gemini_budget import BudgetedGemini
 
 
 @dataclass(frozen=True)
@@ -27,15 +28,16 @@ class EmbeddingSettings:
 
 
 class GeminiEmbeddings:
-    def __init__(self, client, settings=EmbeddingSettings()):
-        self.client = client
+    def __init__(self, client, settings=EmbeddingSettings(), *, budget=None):
+        self.client = BudgetedGemini(client, budget, 'embed_query') if client and budget else client
+        self.document_client = BudgetedGemini(client, budget, 'embed_document') if client and budget else client
         self.settings = settings
         self._slots = asyncio.Semaphore(settings.concurrency)
 
-    async def _embed(self, text: str) -> list[float]:
+    async def _embed(self, text: str, *, document=False) -> list[float]:
         async with self._slots:
             response = await asyncio.wait_for(
-                self.client.aio.models.embed_content(
+                (self.document_client if document else self.client).aio.models.embed_content(
                     model=self.settings.model,
                     contents=text,
                     config=types.EmbedContentConfig(output_dimensionality=self.settings.dimensions),
@@ -60,7 +62,7 @@ class GeminiEmbeddings:
     async def document(self, text: str, title: str | None = None):
         if not text.strip():
             raise ValueError("Document is empty")
-        return await self._embed(f"title: {title or 'none'} | text: {text}")
+        return await self._embed(f"title: {title or 'none'} | text: {text}", document=True)
 
     async def documents(self, documents: list[tuple[str, str | None]]):
         # Bounded batches avoid scheduling a task for every chunk of a large upload.

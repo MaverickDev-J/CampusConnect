@@ -1,4 +1,5 @@
 """PostgreSQL LangGraph: reuse routing while replacing all retrieval I/O."""
+from contextlib import aclosing
 from langgraph.graph import END, StateGraph
 from sqlalchemy import text
 
@@ -7,6 +8,7 @@ from api.agent.state import UserProfile, ChatMessage, RetrievedChunk
 from api.services.retrieval.postgres_search import PostgresSearch
 from database.postgres import principal_session
 from google.genai import types
+from core.gemini_budget import budget_scope
 
 
 class PgState(AgentState):
@@ -14,11 +16,14 @@ class PgState(AgentState):
 
 
 class PostgresRag:
-    def __init__(self, factory, embeddings, reranker=None, *, route=router_node):
+    def __init__(self, factory, embeddings, reranker=None, *, route=router_node, budget=None):
         self.factory, self.embeddings, self.reranker = factory, embeddings, reranker
         graph = StateGraph(PgState)
         graph.add_node("entry", self.entry)
-        graph.add_node("router", route)
+        async def scoped_router(state):
+            with budget_scope(budget, 'route'):
+                return await route(state)
+        graph.add_node("router", scoped_router)
         graph.add_node("embed", self.embed)
         graph.add_node("retriever", self.retrieve)
         graph.add_node("web", web_search_node)
@@ -99,9 +104,10 @@ class GeminiAnswer:
             config=types.GenerateContentConfig(system_instruction=SYNTHESIS_SYSTEM_PROMPT,
               temperature=0.3, max_output_tokens=4096, thinking_config=types.ThinkingConfig(thinking_level="low")))
         emitted = False
-        async for item in stream:
-            if item.text:
-                emitted = True
-                yield item.text
+        async with aclosing(stream):
+            async for item in stream:
+                if item.text:
+                    emitted = True
+                    yield item.text
         if not emitted:
             raise RuntimeError("Generation returned no answer")

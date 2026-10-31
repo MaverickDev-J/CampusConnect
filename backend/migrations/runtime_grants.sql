@@ -24,3 +24,5 @@ GRANT SELECT,INSERT,UPDATE ON campus_operations TO :"runtime_role";
 GRANT SELECT ON storage_cleanup TO :"runtime_role";
 GRANT EXECUTE ON FUNCTION public.queue_file_cleanup(text) TO :"runtime_role";
 GRANT SELECT,INSERT,UPDATE ON faculty_workflows,checkpoints,checkpoint_blobs,checkpoint_writes TO :"runtime_role";
+GRANT EXECUTE ON FUNCTION public.reserve_ai_call(uuid,text,text,text,bigint,integer),
+    public.finish_ai_call(uuid,text,bigint,bigint,bigint,integer,integer) TO :"runtime_role";

@@ -7,6 +7,7 @@ from uuid import uuid4
 
 from sqlalchemy import text
 from database.postgres import principal_session
+from core.gemini_budget import budget_scope, BudgetExhausted, ProviderUnavailable
 
 
 def split_pages(pages, words=300, overlap=40):
@@ -34,9 +35,10 @@ async def extract_pages(path, file_type):
 
 
 class IngestionWorker:
-    def __init__(self, factory, embeddings, storage_root, extractor=extract_pages):
+    def __init__(self, factory, embeddings, storage_root, extractor=extract_pages, *, budget=None):
         self.factory, self.embeddings = factory, embeddings
         self.storage_root, self.extractor = Path(storage_root).resolve(), extractor
+        self.budget = budget
 
     async def _lease(self, session, job):
         leased = (await session.execute(text("""SELECT file_id FROM ingestion_jobs
@@ -72,7 +74,8 @@ class IngestionWorker:
                 path = Path(file["storage_path"]).resolve()
                 if not path.is_relative_to(self.storage_root):
                     raise ValueError("Invalid storage path")
-                pages, method = await self.extractor(path, file["file_type"])
+                with budget_scope(self.budget, 'extract'):
+                    pages, method = await self.extractor(path, file["file_type"])
                 chunks = list(split_pages(pages))
                 if not chunks:
                     raise ValueError("Extraction returned no text")
@@ -100,6 +103,13 @@ class IngestionWorker:
                 await session.execute(text("UPDATE file_revisions SET status='ready' WHERE file_id=:file_id AND revision=1"), job)
                 await session.execute(text("UPDATE files SET status='ready',active_revision=1,processing_error=NULL WHERE file_id=:file_id AND status<>'deleted'"), job)
                 await session.execute(text("UPDATE ingestion_jobs SET state='completed',lease_until=NULL,last_error=NULL WHERE file_id=:file_id"), job)
+        except (BudgetExhausted, ProviderUnavailable) as exc:
+            async with self.factory() as session, session.begin():
+                if isinstance(exc, BudgetExhausted) or exc.status == 429:
+                    await session.execute(text('SELECT public.defer_ingestion_job(:file_id,:lease_token,:delay)'),
+                        {**job, 'delay': max(1,min(86400,exc.retry_after))})
+                else:
+                    await session.execute(text('SELECT public.fail_ingestion_job(:file_id,:lease_token)'), job)
         except Exception:
             # Retain successful chunks for retry. Never persist raw provider errors,
             # which may contain document content, paths, or credential details.

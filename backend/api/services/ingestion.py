@@ -45,6 +45,7 @@ from core.llm_router import (
 from core.websocket import manager
 from database.chroma import get_chroma_collection
 from database.mongo import get_db
+from core.gemini_budget import active_budget, budget_scope, BudgetedGemini, BudgetExhausted, ProviderUnavailable
 
 load_dotenv()
 
@@ -90,12 +91,25 @@ async def _extract_with_gemini(file_path: str) -> str:
             "Output ONLY the extracted content. No preamble, no explanations."
         )
 
-        response = await call_gemini_with_fallback(
-            model_chain=INGESTION_MODEL_CHAIN,
-            contents=[gemini_file, prompt],
-            key_pool=ingestion_key_manager,
-            forced_client=client,
-        )
+        scoped = active_budget.get()
+        if scoped:
+            budget, workload, _ = scoped
+            # Media size is not a text-token estimate. Count before generation;
+            # count requests also consume our conservative request allowance.
+            counted = await asyncio.wait_for(BudgetedGemini(client, budget, workload).aio.models.count_tokens(
+                model=INGESTION_MODEL_CHAIN[0], contents=[gemini_file, prompt]), timeout=15)
+            if not isinstance(counted.total_tokens, int) or counted.total_tokens<=0:
+                raise RuntimeError('Could not determine document input size')
+            with budget_scope(budget, workload, input_tokens=counted.total_tokens+256):
+                response = await call_gemini_with_fallback(model_chain=INGESTION_MODEL_CHAIN,
+                    contents=[gemini_file,prompt],key_pool=ingestion_key_manager,forced_client=client)
+        else:
+            response = await call_gemini_with_fallback(
+                model_chain=INGESTION_MODEL_CHAIN,
+                contents=[gemini_file, prompt],
+                key_pool=ingestion_key_manager,
+                forced_client=client,
+            )
 
         text = response.text
         if not text or not text.strip():
@@ -197,6 +211,12 @@ async def _extract_text_tiered(file_path: str, file_type: str) -> tuple[str, str
         try:
             text = await _extract_with_gemini(file_path)
             return text, "gemini"
+        except BudgetExhausted:
+            raise
+        except ProviderUnavailable as exc:
+            if exc.status == 429:
+                raise
+            errors.append('Tier 1 (Gemini): Provider unavailable')
         except Exception as e:
             logger.warning("[Extraction] Tier 1 (Gemini) failed: %s. Trying Tier 2...", e)
             errors.append(f"Tier 1 (Gemini): {e}")

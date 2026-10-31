@@ -191,3 +191,69 @@ Linux containers on Modal do not require this override.
 PostgreSQL runs in Docker for local development. On Modal the ASGI application
 will connect to a persistent PostgreSQL service through DATABASE_URL; running the
 database inside the web container is not part of this deployment.
+
+Migration 008 adds shared Gemini admission control. Reapply both runtime and
+worker grants after upgrading. All PostgreSQL API/worker processes must use the
+same GEMINI_BUDGET_PROJECT label and database. The default label is
+`campusconnect-default`; it aggregates every configured key pool conservatively.
+It is not automatically discovered from Google credentials. Provision matching
+owner-managed policies before using another label. The legacy production
+entrypoint does not use these controls until cutover.
+
+Default application caps for light demo use:
+
+| Model | Requests/minute | Reserved input units/minute | Requests/Pacific day | Concurrent calls |
+| --- | ---: | ---: | ---: | ---: |
+| Gemini 3.8 Flash | 4 | 32,000 | 40 | 2 |
+| Gemini Embedding 2 | 10 | 16,000 | 200 | 2 |
+
+Flash reserves 1 request/minute, 8,000 input units/minute, 5 requests/day and one
+concurrency slot for answering. Embeddings reserve 2 requests/minute, 4,000 input
+units/minute, 20 requests/day and one slot for interactive query embeddings.
+Optional routing/reranking/drafts and background work cannot consume that
+headroom. An admitted answer is still subject to the total limits; the reserve
+does not promise availability when concurrent answers consume the cap.
+
+These are app limits, not verified Google free-tier entitlements or a billing
+ceiling. They cannot account for requests made by other applications. Google's
+actual project/model quotas may be lower. Request/token windows are rolling 60
+seconds; daily counts follow Google's midnight Pacific reset. Reservations remain
+charged after errors, cancellation and process death. Concurrency leases expire
+after 180 seconds; bounded provider operations finish or time out before that.
+Restarting a process does not reset counters.
+
+Text input uses a conservative UTF-8-size reservation including serialized config
+and framing allowance, not a claimed exact tokenizer count. The ledger keeps the
+larger of reserved and reported input usage for admission. Observed input, output,
+and thinking tokens are recorded separately when the SDK supplies them; unknown
+usage remains null. Media generation uses a provider token-count request first,
+which also consumes an app request allowance. Output budgets are bounded per
+workload. No prompt text, API keys, user IDs or document paths enter this ledger.
+
+SDK inference retries are disabled on these paths. HTTP 429 and transient service
+errors set a shared model cooldown, honoring Retry-After when supplied. The
+PostgreSQL router/extraction paths make one attempt through the existing helper;
+they do not rotate to another key or model to bypass this budget. Optional
+reranking falls back to RRF, query-embedding failure falls back to lexical search,
+and unavailable answer/draft capacity returns a retryable response. Admission
+fails closed if the budget database is unavailable or a policy is missing.
+Accounting failure after a provider call never repeats that call; the existing
+reservation remains charged and its lease bounds the occupied slot.
+
+Ingestion defers quota-blocked jobs with a retry delay and jitter, retaining
+completed embeddings without using failure attempts. Provider 429s also defer
+the job. Other provider failures retain the existing bounded failure/retry path.
+No external Gemini request is held inside a database transaction.
+
+Inspect or adjust caps using migration-owner DATABASE_URL from the backend
+directory (the API role cannot read or change policies directly):
+
+```powershell
+uv run python -m scripts.ai_budget --show
+uv run python -m scripts.ai_budget --model gemini-3.8-flash --rpm 3
+```
+
+Lower associated reserves when lowering totals below them. Do not reset usage
+records to bypass provider limits. Archive/prune old ledger records as scheduled
+maintenance; preserve the current Pacific day and active leases. No paid Batch
+API, automatic billing upgrade, or local inference server is introduced.

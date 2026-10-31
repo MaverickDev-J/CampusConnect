@@ -2,12 +2,14 @@
 import asyncio
 import json
 import logging
+from contextlib import aclosing
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import StreamingResponse
 from api.dependencies import get_current_user
 from api.routers.chat import CreateSessionBody, ChatMessageBody, RenameSessionBody
 from database.postgres import principal_session
 from sqlalchemy import text
+from core.gemini_budget import BudgetExhausted
 
 router = APIRouter(prefix="/api/chat", tags=["Chat"])
 logger = logging.getLogger(__name__)
@@ -79,9 +81,10 @@ async def message(session_id: str, request: Request, body: ChatMessageBody, prin
                     yield sse("token", answer[0])
                 else:
                     yield sse("status", "Generating answer...")
-                    async for token in request.app.state.answer(state):
-                        answer.append(token)
-                        yield sse("token", token)
+                    async with aclosing(request.app.state.answer(state)) as tokens:
+                        async for token in tokens:
+                            answer.append(token)
+                            yield sse("token", token)
                 # Permission, revision, and deletion checks run again before storing
                 # references or emitting source metadata to the client.
                 await request.app.state.files.authorize(principal, saved["classroom_id"])
@@ -96,8 +99,11 @@ async def message(session_id: str, request: Request, body: ChatMessageBody, prin
                 await store.finish(principal, saved, body.query, ''.join(answer), state.get("used_sources", []))
                 yield sse("sources", state.get("used_sources", []))
                 if state.get("rerank_fallback_reason"):
-                    yield sse("status", "Answer prepared using hybrid search")
+                    yield sse("status", "Answer prepared from available course evidence")
                 yield sse("done", "")
+        except BudgetExhausted:
+            yield sse('error', 'AI capacity is temporarily unavailable. Please try again later.')
+            yield sse('done', '')
         except Exception:
             logger.warning("PostgreSQL chat turn failed; session=%s", session_id)
             yield sse("error", "Unable to complete this response. Please try again.")

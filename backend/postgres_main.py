@@ -35,6 +35,7 @@ from api.agent.faculty_workflow import FacultyWorkflow, GeminiDraftGenerator
 from api.routers import workflows
 from mcp_server.server import create_mcp
 from mcp_server.client import McpDocumentsClient
+from core.gemini_budget import ProjectBudget, BudgetedGemini
 
 
 def create_app(database_url=None, *, storage_root=None, redis_url=None):
@@ -55,7 +56,7 @@ def create_app(database_url=None, *, storage_root=None, redis_url=None):
                 if role:
                     raise RuntimeError("PostgreSQL runtime must be a non-owner role without RLS bypass")
                 version = (await connection.execute(text("SELECT version_num FROM alembic_version"))).scalar_one()
-                if version != "007_workflows":
+                if version != "008_ai_budget":
                     raise RuntimeError("Apply the expected database migrations before starting")
             app.state.accounts = PostgresAccounts(factory)
             app.state.classrooms = PostgresClassrooms(factory)
@@ -66,10 +67,13 @@ def create_app(database_url=None, *, storage_root=None, redis_url=None):
                 client = genai.Client(api_key=key.split(',')[0].strip())
             app.state.chat = PostgresChat(factory)
             app.state.actions = CampusActions(factory)
-            app.state.rag = PostgresRag(factory, GeminiEmbeddings(client), GeminiReranker(client) if client else None)
-            app.state.answer = GeminiAnswer(client)
+            budget = app.state.ai_budget = ProjectBudget(factory)
+            app.state.rag = PostgresRag(factory, GeminiEmbeddings(client, budget=budget),
+                GeminiReranker(BudgetedGemini(client, budget, 'rerank')) if client else None, budget=budget)
+            app.state.answer = GeminiAnswer(BudgetedGemini(client, budget, 'answer') if client else None)
             app.state.documents = CampusDocuments(factory, app.state.rag, app.state.files)
-            app.state.workflows = FacultyWorkflow(factory, McpDocumentsClient(app), app.state.actions, GeminiDraftGenerator(client))
+            app.state.workflows = FacultyWorkflow(factory, McpDocumentsClient(app), app.state.actions,
+                GeminiDraftGenerator(BudgetedGemini(client, budget, 'draft') if client else None))
             app.state.ws_redis = Redis.from_url(redis_url or settings.REDIS_URL, decode_responses=True, socket_connect_timeout=5, socket_timeout=5)
             app.state.ws_origins = [f'http://{host}:{port}' for host in ('localhost','127.0.0.1') for port in (3000,3001)]
             async with mcp_app.lifespan(app):

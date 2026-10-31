@@ -9,6 +9,7 @@ from google import genai
 from api.services.postgres_ingestion import IngestionWorker
 from api.services.retrieval.embeddings import GeminiEmbeddings
 from database.postgres import create_session_factory
+from core.gemini_budget import ProjectBudget
 
 
 async def main():
@@ -16,7 +17,8 @@ async def main():
     engine, factory = create_session_factory(os.environ["DATABASE_URL"])
     key = os.getenv("GEMINI_INGESTION_KEYS") or os.getenv("GEMINI_API_KEY") or os.environ["GEMINI_API_KEYS"]
     client = genai.Client(api_key=key.split(',')[0].strip())
-    worker = IngestionWorker(factory, GeminiEmbeddings(client), Path(os.getenv("STORAGE_DIR", "storage")))
+    budget = ProjectBudget(factory)
+    worker = IngestionWorker(factory, GeminiEmbeddings(client, budget=budget), Path(os.getenv("STORAGE_DIR", "storage")), budget=budget)
     try:
         while True:
             if not await worker.run_once():

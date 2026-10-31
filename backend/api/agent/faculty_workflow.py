@@ -17,6 +17,7 @@ from sqlalchemy import text
 from api.routers.announcements import CreateAnnouncementBody
 from api.routers.postgres_campus import EventBody
 from database.postgres import principal_session
+from core.gemini_budget import BudgetExhausted
 
 
 class DraftContent(BaseModel):
@@ -86,6 +87,9 @@ class GeminiDraftGenerator:
                     temperature=0.2, max_output_tokens=2048,
                     thinking_config=types.ThinkingConfig(thinking_level='low'))), timeout=30)
             return DraftContent.model_validate_json(response.text)
+        except BudgetExhausted as exc:
+            raise HTTPException(429, 'AI capacity is temporarily unavailable; please retry later',
+                                headers={'Retry-After': str(exc.retry_after)}) from None
         except HTTPException:
             raise
         except Exception:

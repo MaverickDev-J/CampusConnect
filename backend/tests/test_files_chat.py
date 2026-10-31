@@ -15,6 +15,7 @@ from api.agent.state import RouterOutput
 from api.services.postgres_ingestion import IngestionWorker
 from api.services.retrieval.embeddings import EmbeddingSettings
 from database.postgres import principal_session
+from core.gemini_budget import BudgetExhausted
 
 
 class FakeEmbeddings:
@@ -156,6 +157,30 @@ class FilesChatTests(ApiFixture):
         await worker.run_once()
         self.assertEqual(embeddings.calls, 4)  # 1 saved + 1 failure + 2 remaining chunks.
         self.assertEqual((await self.client.get(f"/api/files/{file_id}", headers=self.headers)).json()["processing"]["status"], "completed")
+
+    async def test_quota_wait_preserves_embeddings_without_consuming_failure_retries(self):
+        await self.setup_course()
+        file_id = (await self.upload()).json()['file_id']
+        async def pages(*args):
+            return [(' '.join(['backpropagation']*600),1)],'test'
+        embeddings = FakeEmbeddings()
+        original = embeddings.document
+        async def document(*args):
+            if embeddings.calls == 1:
+                raise BudgetExhausted('request_limit',60)
+            return await original(*args)
+        embeddings.document = document
+        worker = await self.worker(embeddings,pages)
+        await worker.run_once()
+        with psycopg.connect(self.owner_url) as conn:
+            row = conn.execute('SELECT state,attempts,available_at>now() FROM ingestion_jobs WHERE file_id=%s',(file_id,)).fetchone()
+            self.assertEqual(row,('pending',0,True))
+            self.assertEqual(conn.execute('SELECT count(*) FROM chunks WHERE file_id=%s AND embedding IS NOT NULL',(file_id,)).fetchone()[0],1)
+            conn.execute('UPDATE ingestion_jobs SET available_at=now() WHERE file_id=%s',(file_id,))
+        embeddings.document = original
+        await worker.run_once()
+        self.assertEqual(embeddings.calls,3)
+        self.assertEqual((await self.client.get(f'/api/files/{file_id}',headers=self.headers)).json()['processing']['status'],'completed')
 
     async def test_chat_session_owner_scope_and_failed_turn_cleanup(self):
         await self.setup_course()

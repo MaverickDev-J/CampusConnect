@@ -22,6 +22,7 @@ from typing import Any, List, Optional
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
+from core.gemini_budget import active_budget, BudgetedGemini
 
 # Load .env BEFORE os.getenv() is called at module import time.
 # Without this, Celery workers start with empty env vars because
@@ -198,6 +199,18 @@ async def call_gemini_with_fallback(
 
     if not pool.has_keys:
         raise RuntimeError(f"[{pool.pool_name}] No API keys configured")
+
+    scoped = active_budget.get()
+    if scoped:
+        # PostgreSQL paths make one charged attempt. A different key in this
+        # project cannot bypass quota, and no unconfigured model is selected.
+        budget, workload, input_tokens = scoped
+        client = forced_client or pool.get_client()[0]
+        effective_config = config or types.GenerateContentConfig(system_instruction=system_instruction, temperature=0.4)
+        if system_instruction:
+            effective_config = effective_config.model_copy(update={'system_instruction':system_instruction})
+        return await BudgetedGemini(client, budget, workload, input_tokens=input_tokens).aio.models.generate_content(
+            model=model_chain[0], contents=contents, config=effective_config)
 
     for model_name in model_chain:
         # If a client is forced (e.g. for File API), we only attempt once with that client.

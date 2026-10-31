@@ -6,6 +6,7 @@ from dataclasses import dataclass
 
 from google.genai import types
 from pydantic import BaseModel, ConfigDict
+from core.gemini_budget import BudgetExhausted
 
 
 @dataclass(frozen=True)
@@ -91,6 +92,8 @@ class GeminiReranker:
                 input_tokens=getattr(usage, "prompt_token_count", None),
                 output_tokens=getattr(usage, "candidates_token_count", None),
             )
+        except BudgetExhausted as exc:
+            return RerankResult(original, 'budget_unavailable' if exc.reason=='budget_unavailable' else 'budget_exhausted')
         except TimeoutError:
             return RerankResult(original, "timeout")
         except Exception:
