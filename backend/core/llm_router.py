@@ -217,12 +217,9 @@ async def call_gemini_with_fallback(
                     temperature=0.4,
                 )
             elif system_instruction:
-                # Inject system instruction into existing config object
-                effective_config = types.GenerateContentConfig(
-                    system_instruction=system_instruction,
-                    temperature=getattr(effective_config, "temperature", 0.4),
-                    max_output_tokens=getattr(effective_config, "max_output_tokens", None),
-                    response_mime_type=getattr(effective_config, "response_mime_type", None),
+                # Preserve JSON Schema and all provider settings when adding instructions.
+                effective_config = effective_config.model_copy(
+                    update={"system_instruction": system_instruction}
                 )
 
             try:

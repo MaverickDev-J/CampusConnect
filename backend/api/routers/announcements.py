@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
 from api.dependencies import get_current_user
+from api.services.access_policy import authorize_classroom, authorize_file
 from database.chroma import get_chroma_collection
 from database.mongo import get_db
 from core.websocket import manager
@@ -42,21 +43,12 @@ async def create_announcement(
 
     db = get_db()
 
-    # Verify classroom exists
-    classroom = await db.classrooms.find_one({"classroom_id": body.classroom_id})
-    if not classroom:
-        raise HTTPException(status_code=404, detail="Classroom not found")
+    classroom = await authorize_classroom(db, body.classroom_id, current_user, write=True)
+    if body.file_id:
+        await authorize_file(db, body.file_id, current_user, classroom_id=body.classroom_id)
 
     # ── Verify the teacher is a MEMBER of this classroom ──────────
     # (Fixes: any teacher could post to any classroom if they knew its ID)
-    if current_user["role"] != "superadmin":
-        member_ids = [m["user_id"] for m in classroom.get("members", [])]
-        if current_user["user_id"] not in member_ids:
-            raise HTTPException(
-                status_code=403,
-                detail="You must be a member of this classroom to post announcements",
-            )
-
     # Content validation
     final_content = body.content
     if not final_content or not final_content.strip():
@@ -125,6 +117,7 @@ async def list_announcements(
 ):
     """Return announcements for a classroom, newest first. Paginated."""
     db = get_db()
+    await authorize_classroom(db, classroom_id, current_user)
     skip = (max(page, 1) - 1) * min(limit, 100)
 
     total = await db.announcements.count_documents({"classroom_id": classroom_id})

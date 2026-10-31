@@ -23,6 +23,7 @@ ENV/
 *.env
 
 # Project Specifics
+AI_IMPLEMENTATION_PLAN.md
 backend/storage/
 backend/chroma_data/
 backend/mongodb/

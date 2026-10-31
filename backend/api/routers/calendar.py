@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from api.dependencies import get_current_user, require_classroom_member
 from database.mongo import get_db
 from models.schemas import CalendarEventCreate
+from api.services.access_policy import authorize_classroom
 from core.websocket import manager
 
 router = APIRouter(prefix="/api/calendar", tags=["Calendar"])
@@ -23,6 +24,8 @@ async def create_event(
         )
     
     db = get_db()
+    if body.classroom_id:
+        await authorize_classroom(db, body.classroom_id, current_user, write=True)
     event_id = f"ev_{uuid4().hex[:12]}"
     
     event_doc = {
