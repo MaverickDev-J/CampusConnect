@@ -192,6 +192,24 @@ PostgreSQL runs in Docker for local development. On Modal the ASGI application
 will connect to a persistent PostgreSQL service through DATABASE_URL; running the
 database inside the web container is not part of this deployment.
 
+For a newly linked Neon project, `neon init` writes owner connection variables to
+the ignored root `.env.local`. From backend, apply the schema and provision app
+credentials with:
+
+```powershell
+uv run python -m scripts.bootstrap_postgres --apply
+```
+
+The bootstrap uses DATABASE_URL_UNPOOLED for Alembic, creates separate restricted
+API/worker logins, then preserves existing backend `.env` settings while writing
+pooled DATABASE_URL / WORKER_DATABASE_URL and direct MIGRATION_DATABASE_URL.
+Never deploy the migration-owner URL as the API connection. Re-running setup
+reapplies grants and verifies existing credentials without rotating passwords.
+It refuses privileged runtime roles or an existing role whose credential is
+missing. Both credential files and the local Neon/agent configuration are ignored.
+No application data is imported or existing production traffic switched by this
+bootstrap. Keep the previous database and upload volume available for migration.
+
 Migration 008 adds shared Gemini admission control. Reapply both runtime and
 worker grants after upgrading. All PostgreSQL API/worker processes must use the
 same GEMINI_BUDGET_PROJECT label and database. The default label is

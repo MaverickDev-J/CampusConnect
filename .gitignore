@@ -58,3 +58,7 @@ package-lock.json
 *.zip
 *.tar.gz
 *.rar
+.neon
+.codex/
+.agents/skills/
+skills-lock.json
