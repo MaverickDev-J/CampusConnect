@@ -7,7 +7,7 @@ import secrets
 from datetime import datetime, timezone
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from api.dependencies import get_current_user, require_role
 from database.mongo import get_db
@@ -47,9 +47,12 @@ def _classroom_to_response(doc: dict, creator_name: str = None) -> ClassroomResp
 @router.post("", response_model=ClassroomResponse, status_code=status.HTTP_201_CREATED)
 async def create_classroom(
     body: ClassroomCreate,
+    request: Request,
     current_user: dict = Depends(require_role("teacher", "superadmin")),
 ):
     """Create a new classroom. Teachers and Superadmin only."""
+    if getattr(request.app.state, "classrooms", None) is not None:
+        return await request.app.state.classrooms.create(current_user, body)
     db = get_db()
 
     # Generate a unique join code (retry on collision)
@@ -89,6 +92,7 @@ async def create_classroom(
 
 @router.get("")
 async def list_classrooms(
+    request: Request,
     page: int = 1,
     limit: int = 50,
     current_user: dict = Depends(get_current_user),
@@ -99,6 +103,8 @@ async def list_classrooms(
     - Superadmin: all classrooms
     Supports pagination.
     """
+    if getattr(request.app.state, "classrooms", None) is not None:
+        return await request.app.state.classrooms.list(current_user, page, limit)
     db = get_db()
     user_id = current_user["user_id"]
     role = current_user["role"]
@@ -130,9 +136,12 @@ async def list_classrooms(
 @router.get("/{classroom_id}")
 async def get_classroom(
     classroom_id: str,
+    request: Request,
     current_user: dict = Depends(get_current_user),
 ):
     """Get classroom detail including member list. Must be a member or superadmin."""
+    if getattr(request.app.state, "classrooms", None) is not None:
+        return await request.app.state.classrooms.detail(current_user, classroom_id)
     db = get_db()
     doc = await db.classrooms.find_one({"classroom_id": classroom_id})
 
@@ -194,9 +203,12 @@ async def get_classroom(
 @router.post("/join")
 async def join_classroom(
     body: JoinClassroomBody,
+    request: Request,
     current_user: dict = Depends(get_current_user),
 ):
     """Join a classroom using a 6-character join code."""
+    if getattr(request.app.state, "classrooms", None) is not None:
+        return await request.app.state.classrooms.join(current_user, body.join_code)
     db = get_db()
     user_id = current_user["user_id"]
     join_code = body.join_code.upper().strip()
@@ -241,12 +253,15 @@ async def join_classroom(
 @router.delete("/{classroom_id}", status_code=status.HTTP_200_OK)
 async def delete_classroom(
     classroom_id: str,
+    request: Request,
     current_user: dict = Depends(require_role("teacher", "superadmin")),
 ):
     """
     Delete a classroom. Only the creator (teacher) or superadmin can delete.
     Cascade-deletes: files (disk + Chroma vectors), chat sessions, announcements, notifications.
     """
+    if getattr(request.app.state, "classrooms", None) is not None:
+        return await request.app.state.classrooms.delete(current_user, classroom_id)
     db = get_db()
 
     classroom = await db.classrooms.find_one({"classroom_id": classroom_id})

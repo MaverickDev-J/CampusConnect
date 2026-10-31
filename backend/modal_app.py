@@ -38,8 +38,11 @@ image = (
         "pillow>=10.0.0",
         "ddgs>=6.4.0",
         "celery>=5.4.0",
+        "sqlalchemy[asyncio]==2.1.6",
+        "psycopg[binary,pool]==3.3.6",
+        "pgvector==0.5.1",
     )
-    .add_local_python_source("api", "core", "database", "models", "main")
+    .add_local_python_source("api", "core", "database", "models", "repositories", "main")
 )
 
 app = modal.App("campusconnect", image=image)

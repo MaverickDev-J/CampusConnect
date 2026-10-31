@@ -1,12 +1,15 @@
-"""Auth router – register (students only), login, /users/me."""
+"""Registration, login, and profile routes shared by both database adapters."""
 
+import asyncio
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 
 from core.security import hash_password, verify_password, create_access_token
-from database.mongo import get_db
+from repositories.accounts import get_accounts
+from sqlalchemy.exc import IntegrityError
+from pymongo.errors import DuplicateKeyError
 from models.schemas import (
     RoleEnum,
     UserCreate,
@@ -44,10 +47,10 @@ async def register(request: Request, payload: UserCreate):
     """
     Self-registration — students and teachers.
     """
-    db = get_db()
+    accounts = get_accounts(request)
 
     # 1. Duplicate email check
-    if await db.users.find_one({"email": payload.email}):
+    if await accounts.by_email(payload.email.lower().strip()):
         raise HTTPException(status_code=409, detail="Email already registered")
 
     # 2. Build user document (allow student and teacher self-registration)
@@ -63,16 +66,19 @@ async def register(request: Request, payload: UserCreate):
         "user_id": user_id,
         "email": email_lower,
         "name": payload.name,
-        "password": hash_password(payload.password),
+        "password": await asyncio.to_thread(hash_password, payload.password),
         "role": role.value,
         "profile": profile,
     }
 
-    await db.users.insert_one(user_doc)
+    try:
+        await accounts.create(user_doc)
+    except (IntegrityError, DuplicateKeyError):
+        raise HTTPException(status_code=409, detail="Email already registered")
 
     return UserResponse(
         user_id=user_id,
-        email=payload.email,
+        email=email_lower,
         name=payload.name,
         role=role,
         profile=profile,
@@ -83,11 +89,11 @@ async def register(request: Request, payload: UserCreate):
 
 @router.post("/api/auth/login", response_model=TokenResponse, tags=["Auth"])
 async def login(request: Request, form: OAuth2PasswordRequestForm = Depends()):
-    db = get_db()
+    accounts = get_accounts(request)
     email_lower = form.username.lower().strip()
 
-    user = await db.users.find_one({"email": email_lower})
-    if not user or not verify_password(form.password, user["password"]):
+    user = await accounts.by_email(email_lower)
+    if not user or not await asyncio.to_thread(verify_password, form.password, user["password"]):
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
     # JWT payload — minimal claims
@@ -117,10 +123,11 @@ async def get_me(current_user: dict = Depends(get_current_user)):
 
 @router.patch("/api/users/me", response_model=UserResponse, tags=["Users"])
 async def update_me(
+    request: Request,
     payload: UserUpdate,
     current_user: dict = Depends(get_current_user)
 ):
-    db = get_db()
+    accounts = get_accounts(request)
     
     update_data = {}
     if payload.name:
@@ -129,15 +136,12 @@ async def update_me(
     if not update_data:
         raise HTTPException(status_code=400, detail="No update data provided")
         
-    await db.users.update_one(
-        {"user_id": current_user["user_id"]},
-        {"$set": update_data}
-    )
+    updated_user = await accounts.update(current_user["user_id"], update_data)
     # Invalidate the Redis cache so next request gets fresh data
-    invalidate_user_cache(current_user["user_id"])
+    if accounts.uses_profile_cache:
+        invalidate_user_cache(current_user["user_id"])
     
     # Fetch updated doc
-    updated_user = await db.users.find_one({"user_id": current_user["user_id"]})
     return UserResponse(
         user_id=updated_user["user_id"],
         email=updated_user["email"],
@@ -151,22 +155,22 @@ async def update_me(
 
 @router.post("/api/users/me/password", tags=["Users"])
 async def change_password(
+    request: Request,
     payload: PasswordChange,
     current_user: dict = Depends(get_current_user)
 ):
-    db = get_db()
+    accounts = get_accounts(request)
     
     # Verify old password
-    if not verify_password(payload.old_password, current_user["password"]):
+    credential = await accounts.by_email(current_user["email"])
+    if not credential or not await asyncio.to_thread(verify_password, payload.old_password, credential["password"]):
         raise HTTPException(status_code=401, detail="Invalid current password")
         
     # Hash and update
-    new_hashed = hash_password(payload.new_password)
-    await db.users.update_one(
-        {"user_id": current_user["user_id"]},
-        {"$set": {"password": new_hashed}}
-    )
+    new_hashed = await asyncio.to_thread(hash_password, payload.new_password)
+    await accounts.update(current_user["user_id"], {"password": new_hashed})
     # Invalidate the Redis cache — cached user has the old password hash
-    invalidate_user_cache(current_user["user_id"])
+    if accounts.uses_profile_cache:
+        invalidate_user_cache(current_user["user_id"])
 
     return {"message": "Password updated successfully"}
