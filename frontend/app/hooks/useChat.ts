@@ -26,8 +26,8 @@ export interface ChatMessage {
 
 export interface SourceRef {
     file_name: string;
-    page_number: number;
-    relevance_score: number;
+    page_number: number | null;
+    relevance_score: number | null;
     chunk_preview?: string;
 }
 

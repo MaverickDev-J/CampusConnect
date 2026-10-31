@@ -11,3 +11,9 @@ GRANT SELECT ON files, file_revisions, chunks, alembic_version TO :"runtime_role
 GRANT EXECUTE ON FUNCTION public.actor_role(), public.login_account(text),
     public.register_account(text,text,text,text,text,jsonb), public.join_classroom(text),
     public.can_read_classroom(text) TO :"runtime_role";
+GRANT INSERT ON files, ingestion_jobs TO :"runtime_role";
+GRANT UPDATE ON files TO :"runtime_role";
+GRANT SELECT ON ingestion_jobs TO :"runtime_role";
+GRANT SELECT,INSERT,UPDATE,DELETE ON chat_sessions,chat_messages TO :"runtime_role";
+GRANT USAGE,SELECT ON SEQUENCE chat_messages_message_id_seq TO :"runtime_role";
+GRANT EXECUTE ON FUNCTION public.can_write_classroom(text), public.retry_ingestion_job(text) TO :"runtime_role";

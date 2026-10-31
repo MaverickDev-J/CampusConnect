@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 import secrets
 import sys
+import tempfile
 import unittest
 from unittest.mock import patch
 from uuid import uuid4
@@ -24,7 +25,7 @@ if sys.platform == "win32":
 
 
 @unittest.skipUnless(os.getenv("TEST_DATABASE_URL"), "Set TEST_DATABASE_URL for API integration")
-class PostgresApiTests(unittest.IsolatedAsyncioTestCase):
+class PostgresApiFixture(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.tag = uuid4().hex[:12]
         self.role = "api_test_" + self.tag
@@ -40,17 +41,22 @@ class PostgresApiTests(unittest.IsolatedAsyncioTestCase):
         self.stack = AsyncExitStack()
         await self.stack.__aenter__()
         self.stack.enter_context(patch.object(settings, "JWT_SECRET", "integration-test-secret-" + "x" * 32))
-        self.app = create_app(runtime_url)
+        test_root = (Path(__file__).parents[1] / "storage" / "integration-tests").resolve()
+        test_root.mkdir(parents=True, exist_ok=True)
+        self.storage = self.stack.enter_context(tempfile.TemporaryDirectory(dir=test_root))
+        self.app = create_app(runtime_url, storage_root=self.storage)
         await self.stack.enter_async_context(self.app.router.lifespan_context(self.app))
         self.client = await self.stack.enter_async_context(httpx.AsyncClient(transport=httpx.ASGITransport(app=self.app), base_url="http://test"))
 
     async def asyncTearDown(self):
-        await self.stack.aclose()
-        with psycopg.connect(self.owner_url) as connection:
-            connection.execute("DELETE FROM classrooms WHERE created_by IN (SELECT user_id FROM users WHERE email LIKE %s)", (f"%{self.tag}@example.com",))
-            connection.execute("DELETE FROM users WHERE email LIKE %s", (f"%{self.tag}@example.com",))
-            connection.execute(sql.SQL("DROP OWNED BY {}").format(sql.Identifier(self.role)))
-            connection.execute(sql.SQL("DROP ROLE {}").format(sql.Identifier(self.role)))
+        try:
+            await self.stack.aclose()
+        finally:
+            with psycopg.connect(self.owner_url) as connection:
+                connection.execute("DELETE FROM classrooms WHERE created_by IN (SELECT user_id FROM users WHERE email LIKE %s)", (f"%{self.tag}@example.com",))
+                connection.execute("DELETE FROM users WHERE email LIKE %s", (f"%{self.tag}@example.com",))
+                connection.execute(sql.SQL("DROP OWNED BY {}").format(sql.Identifier(self.role)))
+                connection.execute(sql.SQL("DROP ROLE {}").format(sql.Identifier(self.role)))
 
     async def account(self, label, role="student"):
         email = f"{label}{self.tag}@example.com"
@@ -62,6 +68,7 @@ class PostgresApiTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(login.status_code, 200, login.text)
         return response.json(), {"Authorization": "Bearer " + login.json()["access_token"]}
 
+class PostgresApiTests(PostgresApiFixture):
     async def test_register_login_profile_and_password_contract(self):
         user, headers = await self.account("student")
         response = await self.client.get("/api/users/me", headers=headers)

@@ -96,6 +96,12 @@ export function useFiles(classroomId?: string) {
         fetchFiles();
     }, [fetchFiles]);
 
+    useEffect(() => {
+        if (!files.some(file => ["pending", "processing"].includes(file.processing.status))) return;
+        const timer = setInterval(() => { void fetchFiles(); }, 3000);
+        return () => clearInterval(timer);
+    }, [files, fetchFiles]);
+
     const uploadFile = async (
         file: File, 
         docType: string = "academic_material",

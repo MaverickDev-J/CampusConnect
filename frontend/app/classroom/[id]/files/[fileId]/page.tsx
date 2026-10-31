@@ -3,6 +3,7 @@
 import { use, useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/app/context/auth-context";
 import { API_BASE_URL } from "@/app/config";
+import { filePlaybackUrl } from "@/app/lib/file-url";
 import { Sidebar } from "@/app/components/Sidebar";
 import Header from "@/app/components/Header";
 import { 
@@ -32,6 +33,7 @@ export default function FileViewerPage({ params }: { params: Promise<{ id: strin
             const res = await fetch(`${API_BASE_URL}/api/files/${fileId}`, {
                 headers: { "Authorization": `Bearer ${user.token}` }
             });
+            if (!res.ok) throw new Error("File is unavailable");
             const data = await res.json();
             setFileData(data);
         } catch (error) {
@@ -40,6 +42,8 @@ export default function FileViewerPage({ params }: { params: Promise<{ id: strin
             setLoading(false);
         }
     }, [user?.token, fileId]);
+
+    useEffect(() => { void fetchFile(); }, [fetchFile]);
 
     if (loading) {
         return (
@@ -82,13 +86,15 @@ export default function FileViewerPage({ params }: { params: Promise<{ id: strin
             }`}>
                 {fileData.file_type === "pdf" ? (
                     <iframe 
-                        src={`${API_BASE_URL}${fileData.playback_url}#toolbar=0`}
+                        src={`${filePlaybackUrl(fileData.playback_url, user?.token)}#toolbar=0`}
+                        referrerPolicy="no-referrer"
                         className="w-full h-[calc(100vh-64px)] border-none bg-white"
                         title={fileData.original_name}
                     />
                 ) : fileData.file_type === "image" ? (
                     <img 
-                        src={`${API_BASE_URL}${fileData.playback_url}`}
+                        src={filePlaybackUrl(fileData.playback_url, user?.token)}
+                        referrerPolicy="no-referrer"
                         alt={fileData.original_name}
                         className="max-w-full max-h-[85vh] object-contain shadow-2xl"
                     />

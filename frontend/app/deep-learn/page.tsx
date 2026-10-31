@@ -519,12 +519,12 @@ export default function DeepLearnPage() {
                                                         )}
                                                         <div className="flex items-center gap-2 pt-1">
                                                             <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">
-                                                                Page{" "}
+                                                                {src.page_number == null ? "Document" : "Page "}
                                                                 {
                                                                     src.page_number
                                                                 }
                                                             </span>
-                                                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">
+                                                            {src.relevance_score != null && <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">
                                                                 {(
                                                                     src.relevance_score *
                                                                     100
@@ -532,7 +532,7 @@ export default function DeepLearnPage() {
                                                                     0
                                                                 )}
                                                                 % match
-                                                            </span>
+                                                            </span>}
                                                         </div>
                                                     </div>
                                                 </div>

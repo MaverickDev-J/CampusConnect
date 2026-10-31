@@ -31,12 +31,49 @@ uv run python postgres_main.py
 ```
 
 The staging API listens on loopback port 8001 and serves the existing auth/profile
-and classroom routes, plus `/health`. It rejects owner/bypass-RLS connections at
+and classroom routes, file upload/list/detail/download/retry, and chat session/
+history/SSE routes, plus `/health`. It rejects owner/bypass-RLS connections at
 startup. Production `main:app` still uses the legacy store; the staging entrypoint
 is for migration verification and will gain the remaining routes before cutover.
-Keep it local until rate limiting, CORS, remaining routes, and deployment checks
+Keep it local until rate limiting, hosted CORS configuration, remaining routes, and deployment checks
 are complete. Classroom deletion currently rejects classrooms with uploaded files
 until durable file cleanup is migrated. No physical files are deleted by this slice.
+Local frontend ports 3000/3001 are allowed by staging CORS. Set the frontend's
+NEXT_PUBLIC_API_URL to `http://localhost:8001` when verifying the migrated routes.
+
+Migration 004 adds scoped file writes, a durable ingestion queue, and owner-scoped
+chat policies. Uploaded files and job records are registered together in a database
+transaction. Duplicate content is deduplicated within a classroom. Downloads always
+check current identity and membership; the staging app has no public static mount.
+
+Run an ingestion worker in a separate process with a separate non-owner login.
+Apply `runtime_grants.sql` and then `worker_grants.sql` to that worker role. Set its
+DATABASE_URL, the same STORAGE_DIR as the API, and existing Gemini credentials:
+
+```powershell
+uv run python ingestion_worker.py
+```
+
+The API role cannot claim jobs. Workers claim jobs using SKIP LOCKED and a lease,
+persist extracted chunks before embedding, and save each successful vector. A
+restart can reclaim an expired lease and reuse those vectors. Failed work retries
+after 30 seconds, at most three attempts; the authorized retry endpoint can reset
+a failed job. Revision 1 is for new Embedding 2 documents only; legacy vectors need
+a separately versioned import/re-embedding path, which is not a cutover procedure
+yet. Native PDF extraction preserves real page numbers; fallback extraction uses
+null page provenance instead of inventing page references. Chunking currently uses
+300-word windows with 40-word overlap, not a tokenizer-based token guarantee.
+
+Chat runs a PostgreSQL LangGraph with the shared router, Embedding 2, lexical/vector
+RRF, and optional API reranking. Query embedding failure falls back to lexical
+retrieval. Reranking failure falls back to RRF. No legacy answer caches are reused
+until safe corpus/permission-versioned cache keys are integrated. Chat turns have
+an exclusive expiring lease, and user/assistant history is committed atomically
+after generation succeeds. Provider failures return the existing SSE error/done
+contract without persisting incomplete answers. Source revisions are rechecked
+before saving a completed turn. The API provider quota budget, full source-quality
+evaluation, WebSocket update support, and final hosted worker topology remain
+release gates. File-list polling keeps pending upload status visible locally.
 
 Integration tests require an explicitly selected disposable database and a test
 owner that can create temporary roles. SQL fixtures are rolled back; API fixtures
@@ -46,8 +83,7 @@ report database tests as skipped.
 
 On Windows, Psycopg async connections require a selector event loop. The async
 integration test and `python postgres_main.py` entrypoint configure that policy.
-Linux
-containers on Modal do not require this override.
+Linux containers on Modal do not require this override.
 
 PostgreSQL runs in Docker for local development. On Modal the ASGI application
 will connect to a persistent PostgreSQL service through DATABASE_URL; running the

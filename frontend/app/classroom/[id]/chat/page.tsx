@@ -370,7 +370,7 @@ export default function ClassroomChatPage({ params }: { params: Promise<{ id: st
                                                         >
                                                             <BookOpen size={11} className="text-amber-600" />
                                                             <span>{s.file_name}</span>
-                                                            <span className="bg-amber-50 px-1.5 py-0.5 rounded text-[9px] text-amber-600">PG {s.page_number}</span>
+                                                            {s.page_number != null && <span className="bg-amber-50 px-1.5 py-0.5 rounded text-[9px] text-amber-600">PG {s.page_number}</span>}
                                                         </motion.div>
                                                     ))}
                                                 </div>

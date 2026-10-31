@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { useFiles, type FileMetadata } from "@/app/hooks/useFiles";
 import { useAuth } from "@/app/context/auth-context";
+import { filePlaybackUrl } from "@/app/lib/file-url";
 import { API_BASE_URL } from "@/app/config";
 import {
     BRANCHES,
@@ -215,7 +216,7 @@ export default function DeepBasePage() {
         }
 
         const handleClick = () => {
-            const url = `${API_BASE_URL}${file.playback_url}`;
+            const url = filePlaybackUrl(file.playback_url, user?.token);
             window.open(url, "_blank");
         };
 
