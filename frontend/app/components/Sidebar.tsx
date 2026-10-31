@@ -9,6 +9,7 @@ import {
     BookOpen,
     Calendar,
     ShieldCheck,
+    Activity,
     ChevronLeft,
     ChevronRight,
 } from "lucide-react";
@@ -24,6 +25,8 @@ export function Sidebar() {
         { name: "Home", href: "/", icon: Home },
         { name: "Classrooms", href: "/classrooms", icon: BookOpen },
         { name: "Calendar", href: "/calendar", icon: Calendar },
+        ...((user?.role === 'teacher' || user?.role === 'superadmin') && process.env.NEXT_PUBLIC_QUALITY_DASHBOARD === 'true'
+            ? [{ name: 'Quality & Runs', href: '/quality', icon: Activity }] : []),
         ...(user?.role === "superadmin"
             ? [{ name: "Admin", href: "/admin", icon: ShieldCheck }]
             : []),

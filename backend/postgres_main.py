@@ -36,6 +36,8 @@ from api.routers import workflows
 from mcp_server.server import create_mcp
 from mcp_server.client import McpDocumentsClient
 from core.gemini_budget import ProjectBudget, BudgetedGemini
+from api.services.answer_cache import AnswerCache
+from api.routers import quality
 
 
 def create_app(database_url=None, *, storage_root=None, redis_url=None):
@@ -56,7 +58,7 @@ def create_app(database_url=None, *, storage_root=None, redis_url=None):
                 if role:
                     raise RuntimeError("PostgreSQL runtime must be a non-owner role without RLS bypass")
                 version = (await connection.execute(text("SELECT version_num FROM alembic_version"))).scalar_one()
-                if version != "008_ai_budget":
+                if version != "009_quality_cache":
                     raise RuntimeError("Apply the expected database migrations before starting")
             app.state.accounts = PostgresAccounts(factory)
             app.state.classrooms = PostgresClassrooms(factory)
@@ -68,8 +70,9 @@ def create_app(database_url=None, *, storage_root=None, redis_url=None):
             app.state.chat = PostgresChat(factory)
             app.state.actions = CampusActions(factory)
             budget = app.state.ai_budget = ProjectBudget(factory)
+            app.state.answer_cache=AnswerCache(factory) if os.getenv('AI_ANSWER_CACHE','true').lower()=='true' else None
             app.state.rag = PostgresRag(factory, GeminiEmbeddings(client, budget=budget),
-                GeminiReranker(BudgetedGemini(client, budget, 'rerank')) if client else None, budget=budget)
+                GeminiReranker(BudgetedGemini(client, budget, 'rerank')) if client else None, budget=budget,cache=app.state.answer_cache)
             app.state.answer = GeminiAnswer(BudgetedGemini(client, budget, 'answer') if client else None)
             app.state.documents = CampusDocuments(factory, app.state.rag, app.state.files)
             app.state.workflows = FacultyWorkflow(factory, McpDocumentsClient(app), app.state.actions,
@@ -112,6 +115,7 @@ def create_app(database_url=None, *, storage_root=None, redis_url=None):
     app.include_router(postgres_campus.router)
     app.include_router(postgres_socket.router)
     app.include_router(workflows.router)
+    app.include_router(quality.router)
 
     @app.get("/health")
     async def health():

@@ -10,6 +10,7 @@ from api.routers.chat import CreateSessionBody, ChatMessageBody, RenameSessionBo
 from database.postgres import principal_session
 from sqlalchemy import text
 from core.gemini_budget import BudgetExhausted
+from core.telemetry import RunTrace,current_trace,stage,save_trace
 
 router = APIRouter(prefix="/api/chat", tags=["Chat"])
 logger = logging.getLogger(__name__)
@@ -65,6 +66,9 @@ async def message(session_id: str, request: Request, body: ChatMessageBody, prin
     saved = await store.acquire(principal, session_id, body.scope_classroom_id)
 
     async def events():
+        trace=RunTrace()
+        trace_token=current_trace.set(trace)
+        outcome='error'
         state = {"query": body.query, "session_id": session_id, "user_id": principal["user_id"],
                  "scope_classroom_id": saved["classroom_id"], "file_id": saved["file_id"], "reasoning": [],
                  "used_sources": [], "retrieved_chunks": [], "no_chunks_found": False}
@@ -76,15 +80,18 @@ async def message(session_id: str, request: Request, body: ChatMessageBody, prin
                         state.update(update)
                 await request.app.state.files.authorize(principal, saved["classroom_id"])
                 answer = []
-                if state.get("fast_reject_response"):
-                    answer = [state["fast_reject_response"]]
+                if state.get('cached_answer') or state.get("fast_reject_response"):
+                    answer = [state.get('cached_answer') or state['fast_reject_response']]
+                    trace.first_token()
                     yield sse("token", answer[0])
                 else:
                     yield sse("status", "Generating answer...")
-                    async with aclosing(request.app.state.answer(state)) as tokens:
-                        async for token in tokens:
-                            answer.append(token)
-                            yield sse("token", token)
+                    with stage('generation'):
+                        async with aclosing(request.app.state.answer(state)) as tokens:
+                            async for token in tokens:
+                                trace.first_token()
+                                answer.append(token)
+                                yield sse("token", token)
                 # Permission, revision, and deletion checks run again before storing
                 # references or emitting source metadata to the client.
                 await request.app.state.files.authorize(principal, saved["classroom_id"])
@@ -97,10 +104,16 @@ async def message(session_id: str, request: Request, body: ChatMessageBody, prin
                         if active != len(sources):
                             raise RuntimeError("Evidence changed during generation")
                 await store.finish(principal, saved, body.query, ''.join(answer), state.get("used_sources", []))
+                if not state.get('cached_answer') and getattr(request.app.state,'answer_cache',None):
+                    await request.app.state.answer_cache.put(state,''.join(answer))
                 yield sse("sources", state.get("used_sources", []))
                 if state.get("rerank_fallback_reason"):
                     yield sse("status", "Answer prepared from available course evidence")
+                outcome='success'
                 yield sse("done", "")
+        except (asyncio.CancelledError,GeneratorExit):
+            outcome='cancelled'
+            raise
         except BudgetExhausted:
             yield sse('error', 'AI capacity is temporarily unavailable. Please try again later.')
             yield sse('done', '')
@@ -109,6 +122,11 @@ async def message(session_id: str, request: Request, body: ChatMessageBody, prin
             yield sse("error", "Unable to complete this response. Please try again.")
             yield sse("done", "")
         finally:
+            try:
+                current_trace.reset(trace_token)
+            except ValueError:
+                pass
+            await save_trace(store.factory,principal,saved['classroom_id'],trace,state,outcome)
             try:
                 await store.release(principal, saved)
             except Exception:

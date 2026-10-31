@@ -7,11 +7,13 @@ from email.utils import parsedate_to_datetime
 import json
 import math
 import os
+import time
 from types import SimpleNamespace
 from uuid import uuid4
 
 from google.genai import types
 from sqlalchemy import text
+from core.telemetry import current_trace
 
 
 class BudgetExhausted(RuntimeError):
@@ -78,6 +80,14 @@ def _failure(error):
     return status, cooldown
 
 
+def provider_event(start,model,workload,usage,outcome,status):
+    trace=current_trace.get()
+    if trace and len(trace.events)<100:
+        trace.events.append({'stage':'provider.'+workload,'model':model,'status':outcome,
+            'offset_ms':int((start-trace.started)*1000),'duration_ms':int((time.perf_counter()-start)*1000),
+            'input_tokens':usage[0],'output_tokens':usage[1],'thinking_tokens':usage[2],'provider_status':status})
+
+
 class ProjectBudget:
     def __init__(self, factory, project=None):
         self.factory = factory
@@ -136,6 +146,7 @@ class BudgetedGemini:
         work = 'count' if kind=='count_tokens' else self.workload
         estimate = 0 if work=='count' else self.input_tokens if self.input_tokens is not None else estimate_input(contents, config)
         call_id = await self.budget.reserve(model, work, estimate, getattr(config,'max_output_tokens',0) or 0)
+        started=time.perf_counter()
         usage, outcome, status, cooldown = (None,None,None), 'error', None, 0
         try:
             async with asyncio.timeout(120):
@@ -150,6 +161,7 @@ class BudgetedGemini:
             status, cooldown = _failure(exc)
             raise ProviderUnavailable(status, cooldown or 60) from None
         finally:
+            provider_event(started,model,work,usage,outcome,status)
             await self.budget.finish(call_id, outcome, usage, status=status, cooldown=cooldown)
 
     async def generate_content(self, *, model, contents, config=None):
@@ -166,6 +178,7 @@ class BudgetedGemini:
         config = self._config(config, 'generate_content_stream')
         async def events():
             call_id = await self.budget.reserve(model, self.workload, estimate_input(contents, config), config.max_output_tokens)
+            started=time.perf_counter()
             usage, outcome, status, cooldown = (None,None,None), 'error', None, 0
             stream = None
             try:
@@ -183,6 +196,7 @@ class BudgetedGemini:
                 status, cooldown = _failure(exc)
                 raise ProviderUnavailable(status, cooldown or 60) from None
             finally:
+                provider_event(started,model,self.workload,usage,outcome,status)
                 if stream is not None and hasattr(stream,'aclose'):
                     try:
                         async with asyncio.timeout(2):

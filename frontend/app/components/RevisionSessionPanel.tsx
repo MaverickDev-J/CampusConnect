@@ -10,6 +10,7 @@ type Draft = {
     workflow_id: string; topic: string; payload: Payload; version: number; payload_hash: string;
     status: "awaiting_approval" | "approved" | "completed" | "rejected";
     sources: Source[]; expires_at: string;
+    created_at: string; updated_at: string; approved_at: string | null;
     result: { announcement: { announcement_id: string }; event: { event_id: string } } | null;
 };
 
@@ -100,6 +101,11 @@ export default function RevisionSessionPanel({ classroomId, token, onPublished }
             </label>}
             {selected && payload && <div className="space-y-4 border-t border-slate-100 pt-5">
                 <p className="text-sm font-bold text-amber-800" aria-live="polite">{statusText[selected.status]} · Version {selected.version}</p>
+                <ol aria-label="Revision session progress" className="flex flex-wrap gap-4 text-xs text-slate-500">
+                    <li>Draft created · {new Date(selected.created_at).toLocaleString()}</li>
+                    {selected.approved_at && <li>Approved · {new Date(selected.approved_at).toLocaleString()}</li>}
+                    {(selected.status === 'completed' || selected.status === 'rejected') && <li>{selected.status === 'completed' ? 'Posted' : 'Rejected'} · {new Date(selected.updated_at).toLocaleString()}</li>}
+                </ol>
                 {expired && !closed && <p className="text-sm text-red-700">This draft has expired. Prepare a new draft with current sources.</p>}
                 <label className="block text-sm font-bold text-slate-700">Title
                     <input maxLength={200} value={payload.title} disabled={busy || closed || expired} onChange={e => setPayload({ ...payload, title: e.target.value })} className={`${inputStyle} mt-1`} />
@@ -130,6 +136,10 @@ export default function RevisionSessionPanel({ classroomId, token, onPublished }
                     {dirty && <p className="self-center text-xs text-slate-500">Save changes, then review and approve again.</p>}
                 </div>}
                 {selected.status === "completed" && <p role="status" className="text-sm text-green-700">The announcement and calendar event were created.</p>}
+                {selected.status === 'completed' && selected.result && <div className="flex gap-4 text-sm font-bold text-amber-800">
+                    <a href={`#announcement-${selected.result.announcement.announcement_id}`} className="underline">View announcement</a>
+                    <a href="/calendar" className="underline">View calendar</a>
+                </div>}
             </div>}
         </section>
     );

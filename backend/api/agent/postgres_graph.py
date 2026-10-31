@@ -9,27 +9,35 @@ from api.services.retrieval.postgres_search import PostgresSearch
 from database.postgres import principal_session
 from google.genai import types
 from core.gemini_budget import budget_scope
+from core.telemetry import stage
 
 
 class PgState(AgentState):
     rerank_fallback_reason: str | None
+    cache_context: str | None
+    cached_answer: str | None
+    cache_status: str
+    retrieval_strategy: str
 
 
 class PostgresRag:
-    def __init__(self, factory, embeddings, reranker=None, *, route=router_node, budget=None):
+    def __init__(self, factory, embeddings, reranker=None, *, route=router_node, budget=None, cache=None):
         self.factory, self.embeddings, self.reranker = factory, embeddings, reranker
+        self.cache=cache
         graph = StateGraph(PgState)
         graph.add_node("entry", self.entry)
         async def scoped_router(state):
-            with budget_scope(budget, 'route'):
+            with budget_scope(budget, 'route'), stage('routing'):
                 return await route(state)
         graph.add_node("router", scoped_router)
+        graph.add_node('cache',self.cached)
         graph.add_node("embed", self.embed)
         graph.add_node("retriever", self.retrieve)
         graph.add_node("web", web_search_node)
         graph.add_node("reject", fast_reject_node)
         graph.set_entry_point("entry")
-        graph.add_edge("entry", "router")
+        graph.add_edge('entry','cache')
+        graph.add_conditional_edges('cache',lambda state: END if state.get('cached_answer') else 'router')
         graph.add_conditional_edges("router", lambda state: {
             "CONVERSATIONAL": END, "OUT_OF_SCOPE": "reject", "WEB_SEARCH": "web",
         }.get(state["router_output"].intent, "embed"))
@@ -37,6 +45,20 @@ class PostgresRag:
         for node in ("retriever", "web", "reject"):
             graph.add_edge(node, END)
         self.graph = graph.compile()
+
+    async def cached(self,state):
+        if not self.cache:
+            return {'cache_status':'disabled'}
+        try:
+            with stage('answer_cache') as event:
+                context,hit=await self.cache.get(state)
+                event['hit']=bool(hit)
+            if hit:
+                return {'cache_context':context,'cache_status':'exact','cached_answer':hit['answer'],
+                        'used_sources':hit['sources'],'retrieval_strategy':'cached'}
+            return {'cache_context':context,'cache_status':'miss'}
+        except Exception:
+            return {'cache_status':'unavailable'}
 
     async def entry(self, state):
         async with principal_session(self.factory, state["user_id"]) as session:
@@ -49,7 +71,8 @@ class PostgresRag:
 
     async def embed(self, state):
         try:
-            embedding = await self.embeddings.query(state["query"])
+            with stage('query_embedding'):
+                embedding = await self.embeddings.query(state["query"])
             return {"query_embedding": embedding, "processing_status": "embedded"}
         except Exception:
             return {"query_embedding": None, "processing_status": "embedded", "rerank_fallback_reason": "embedding_unavailable"}
@@ -78,17 +101,22 @@ class PostgresRag:
         return chunks, sources
 
     async def retrieve(self, state):
-        async with principal_session(self.factory, state["user_id"]) as session:
-            candidates = await PostgresSearch(session).search(state["query"], state["query_embedding"],
-                classroom_id=state["scope_classroom_id"], file_id=state.get("file_id"),
-                strategy="hybrid" if state.get("query_embedding") else "lexical")
+        strategy='hybrid' if state.get('query_embedding') else 'lexical'
+        with stage('retrieval',strategy=strategy) as event:
+            async with principal_session(self.factory, state["user_id"]) as session:
+                candidates = await PostgresSearch(session).search(state["query"], state["query_embedding"],
+                    classroom_id=state["scope_classroom_id"], file_id=state.get("file_id"),
+                    strategy=strategy)
+            event['candidate_count']=len(candidates)
         fallback = state.get("rerank_fallback_reason")
         if self.reranker:
-            ranking = await self.reranker.rerank(state["query"], candidates)
+            with stage('reranking') as event:
+                ranking = await self.reranker.rerank(state["query"], candidates)
+                event['fallback_reason']=ranking.fallback_reason
             candidates, fallback = ranking.candidates, ranking.fallback_reason or fallback
         chunks, sources = await self.evidence(state, candidates)
         return {"retrieved_chunks": chunks, "used_sources": sources, "no_chunks_found": not chunks,
-                "processing_status": "generating", "rerank_fallback_reason": fallback}
+                "processing_status": "generating", "rerank_fallback_reason": fallback,'retrieval_strategy':strategy}
 
 
 class GeminiAnswer:

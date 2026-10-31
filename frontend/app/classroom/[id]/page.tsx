@@ -457,6 +457,7 @@ export default function ClassroomPage({ params }: { params: Promise<{ id: string
                                     announcements.map((ann, idx) => (
                                         <motion.div 
                                             key={ann.announcement_id}
+                                            id={`announcement-${ann.announcement_id}`}
                                             initial={{ opacity: 0, y: 30 }}
                                             animate={{ opacity: 1, y: 0 }}
                                             transition={{ delay: idx * 0.05 }}

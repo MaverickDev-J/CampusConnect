@@ -275,3 +275,51 @@ Lower associated reserves when lowering totals below them. Do not reset usage
 records to bypass provider limits. Archive/prune old ledger records as scheduled
 maintenance; preserve the current Pacific day and active leases. No paid Batch
 API, automatic billing upgrade, or local inference server is introduced.
+
+Migration 009 adds exact answer caching, corpus versions, run traces and retrieval
+evaluation reports. Reapply grants after upgrading. Corpus counters are separate
+from classroom rows so invalidation does not reverse the ingestion/deletion lock
+order. File activation/deletion/provenance changes and active chunk/revision
+updates invalidate the corpus version transactionally.
+
+The graph now checks an exact cache after loading current profile and history.
+Its HMAC key binds principal, membership join time, explicit classroom/file scope,
+corpus version, recent conversation, model/retrieval configuration and system
+prompt hash. Hits recheck authorization and active source revisions. Entries
+expire after 15 minutes. Only completed sourced RAG answers are stored; actions,
+web answers and unsupported contexts bypass this cache. Semantic answer reuse
+stays disabled until reviewed equivalence evaluations justify enabling it. Set
+AI_ANSWER_CACHE=false to disable exact reuse as well. Cache failures fall through
+to normal generation.
+
+Operational traces contain stage timing, source IDs, cache/fallback state and
+available provider token counts, not question text, credentials or private
+reasoning. A trace failure does not fail chat. Faculty owners/admins can inspect
+their permitted classrooms using `/api/quality/overview`, `/runs`, `/compare` and
+`/evaluations`. Metrics use a 14-day window; operators must schedule retention
+cleanup separately. Unknown usage/cost remains unknown. Live, synthetic and
+benchmark origins are distinct. The frontend `/quality` page and sidebar entry
+are enabled with NEXT_PUBLIC_QUALITY_DASHBOARD=true. Faculty workflow cards also
+show persisted lifecycle timestamps and links to created actions.
+
+Comparison runs bypass answer caches and reuse one query embedding for dense,
+hybrid and hybrid+reranking paths. They record actual fallback strategies and
+current corpus versions. Reports are derived server-side from these saved
+rankings and supplied evidence labels. Missing dense results are unavailable,
+not zero-quality measurements. Binary Recall@12 and nDCG@6 apply to supported
+retrieval labels; unanswerable/answer-correctness/refusal grading remains separate.
+Provisional labels never become human-reviewed automatically.
+
+The resumable CLI accepts a dataset containing `version`, `classroom_id`,
+`reviewed` and `cases` (each has `id`, `query`, `relevant_chunk_ids`). With a faculty
+CAMPUS_API_TOKEN, run:
+
+```powershell
+uv run python -m scripts.evaluate_retrieval --dataset path/to/cases.json
+```
+
+It saves a progress journal and JSON/CSV reports under ignored storage, pauses
+between cases for light API use, and records the source commit/dirty state.
+Reports reject old corpus snapshots, inaccessible evidence and unrecorded runs.
+Do not claim measured accuracy gains or a reviewed 60-case corpus until that
+dataset and live model evaluation have actually been completed.

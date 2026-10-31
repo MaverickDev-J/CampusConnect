@@ -4,6 +4,7 @@ from pathlib import Path
 import queue
 import os
 import unittest
+from concurrent.futures import CancelledError as FutureCancelledError
 from unittest.mock import patch
 
 from fastapi.testclient import TestClient
@@ -157,13 +158,21 @@ class CleanupSocketTests(PostgresApiFixture):
             publisher = Redis.from_url(os.environ['TEST_REDIS_URL'],socket_timeout=5,socket_connect_timeout=5)
             try:
                 with TestClient(app,backend_options={'loop_factory':asyncio.SelectorEventLoop}) as client:
-                    with client.websocket_connect(f'/ws/classroom/{self.cid}?token={token}') as socket:
-                        self.assertEqual(socket.receive_json()['type'],'connection_established')
-                        publisher.publish('classroom_updates',json.dumps({'classroom_id':self.cid,
-                          'payload':{'type':'announcement_updated','event_id':'integration-test'}}))
-                        self.assertEqual(socket.receive_json()['event_id'],'integration-test')
-                        socket.send_text('ping')
-                        self.assertEqual(socket.receive_text(),'pong')
+                    verified=False
+                    try:
+                        with client.websocket_connect(f'/ws/classroom/{self.cid}?token={token}') as socket:
+                            self.assertEqual(socket.receive_json()['type'],'connection_established')
+                            publisher.publish('classroom_updates',json.dumps({'classroom_id':self.cid,
+                              'payload':{'type':'announcement_updated','event_id':'integration-test'}}))
+                            self.assertEqual(socket.receive_json()['event_id'],'integration-test')
+                            socket.send_text('ping')
+                            self.assertEqual(socket.receive_text(),'pong')
+                            verified=True
+                    except FutureCancelledError:
+                        # Starlette can cancel its ASGI future during client close.
+                        # Accept that teardown only after every delivery assertion.
+                        if not verified:
+                            raise
             finally:
                 publisher.close()
         await asyncio.to_thread(scenario)
