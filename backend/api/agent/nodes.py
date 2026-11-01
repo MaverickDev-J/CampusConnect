@@ -231,7 +231,7 @@ SCOPE RULE: If intent needs classroom context, use the CURRENT CLASSROOM ID from
 """
 
 
-async def router_node(state: AgentState) -> dict:
+async def router_node(state: AgentState, *, client=None) -> dict:
     """Classify query intent. Strict scope-awareness baked into prompt."""
     logger.info("[router_node] query=%s", state["query"][:80])
 
@@ -272,6 +272,7 @@ async def router_node(state: AgentState) -> dict:
                 max_output_tokens=150,
             ),
             key_pool=router_key_manager,  # Use the cheap isolated ROUTER pool
+            forced_client=client,
         )
     except Exception as e:
         logger.warning("[router_node] All models failed: %s — fallback RAG_SEARCH", e)

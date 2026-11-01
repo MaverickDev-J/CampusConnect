@@ -383,3 +383,19 @@ authenticated quality/review UI have been checked. The original hosted apps stay
 separate. Successful live generation is still a release gate: Google returned
 HTTP 503 in the current checks. Application cooldown/fallback behavior is verified;
 that does not establish answer/draft quality or a measured reranking improvement.
+
+For two API keys, set `GEMINI_CHAT_KEYS` in backend/.env for query routing,
+answers and faculty drafts; set `GEMINI_INGESTION_KEYS` for document/query
+embeddings, extraction and reranking. Each selects its first configured key;
+PostgreSQL paths do not rotate keys to retry a failing request. The older
+GEMINI_API_KEY/GEMINI_API_KEYS settings remain single-key fallbacks. Save secrets
+locally, then run configure_modal and redeploy to update hosted containers.
+The shared conservative budget still covers both keys; separate keys in one
+Google project do not create separate project quotas.
+
+Chat suggestions are derived from current, ready, accessible document names and
+are available without provider calls. Deleted/pending/revoked material does not
+produce suggestions. The optional classification call has a five-second deadline;
+on timeout, the graph continues with scoped document retrieval and records the
+routing fallback. Provider failures remain explicit errors and never become saved
+answers.

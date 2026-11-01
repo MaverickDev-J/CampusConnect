@@ -4,6 +4,7 @@ Run: python postgres_main.py (port 8001)
 Requires the non-owner runtime DATABASE_URL and applied Alembic migrations.
 """
 from contextlib import asynccontextmanager
+from functools import partial
 import os
 import jwt
 from pathlib import Path
@@ -27,6 +28,7 @@ from redis.asyncio import Redis
 from api.services.campus_actions import CampusActions
 from repositories.chat import PostgresChat
 from api.agent.postgres_graph import PostgresRag, GeminiAnswer
+from api.agent.nodes import router_node
 from api.services.retrieval.embeddings import GeminiEmbeddings
 from api.services.retrieval.ranking import GeminiReranker
 from google import genai
@@ -54,7 +56,7 @@ def create_app(database_url=None, *, storage_root=None, redis_url=None):
         if len(settings.JWT_SECRET) < 32 or settings.JWT_SECRET in {"super-secret-change-me", "changeme"}:
             raise RuntimeError("A strong JWT_SECRET is required")
         engine, factory = create_session_factory(url)
-        client = None
+        clients = {}
         try:
             async with engine.connect() as connection:
                 role = (await connection.execute(text("""SELECT r.rolsuper OR r.rolbypassrls OR
@@ -69,19 +71,27 @@ def create_app(database_url=None, *, storage_root=None, redis_url=None):
             app.state.classrooms = PostgresClassrooms(factory)
             app.state.files = PostgresFiles(factory)
             app.state.storage_root = Path(storage_root or os.getenv("STORAGE_DIR", "storage")).resolve()
-            key = os.getenv("GEMINI_API_KEY") or os.getenv("GEMINI_API_KEYS") or os.getenv("GEMINI_CHAT_KEYS")
-            if key:
-                client = genai.Client(api_key=key.split(',')[0].strip())
+            def provider(*names):
+                raw = next((os.environ[name] for name in names if os.getenv(name)),None)
+                if not raw:
+                    return None
+                key=raw.split(',')[0].strip()
+                if key not in clients:
+                    clients[key]=genai.Client(api_key=key)
+                return clients[key]
+            query_client=provider('GEMINI_CHAT_KEYS','GEMINI_API_KEYS','GEMINI_API_KEY')
+            retrieval_client=provider('GEMINI_INGESTION_KEYS','GEMINI_API_KEYS','GEMINI_API_KEY','GEMINI_CHAT_KEYS')
             app.state.chat = PostgresChat(factory)
             app.state.actions = CampusActions(factory)
             budget = app.state.ai_budget = ProjectBudget(factory)
             app.state.answer_cache=AnswerCache(factory) if os.getenv('AI_ANSWER_CACHE','true').lower()=='true' else None
-            app.state.rag = PostgresRag(factory, GeminiEmbeddings(client, budget=budget),
-                GeminiReranker(BudgetedGemini(client, budget, 'rerank')) if client else None, budget=budget,cache=app.state.answer_cache)
-            app.state.answer = GeminiAnswer(BudgetedGemini(client, budget, 'answer') if client else None)
+            app.state.rag = PostgresRag(factory, GeminiEmbeddings(retrieval_client, budget=budget),
+                GeminiReranker(BudgetedGemini(retrieval_client, budget, 'rerank')) if retrieval_client else None,
+                route=partial(router_node,client=query_client),budget=budget,cache=app.state.answer_cache)
+            app.state.answer = GeminiAnswer(BudgetedGemini(query_client, budget, 'answer') if query_client else None)
             app.state.documents = CampusDocuments(factory, app.state.rag, app.state.files)
             app.state.workflows = FacultyWorkflow(factory, McpDocumentsClient(app), app.state.actions,
-                GeminiDraftGenerator(BudgetedGemini(client, budget, 'draft') if client else None))
+                GeminiDraftGenerator(BudgetedGemini(query_client, budget, 'draft') if query_client else None))
             app.state.ws_redis = Redis.from_url(redis_url or settings.REDIS_URL, decode_responses=True, socket_connect_timeout=5, socket_timeout=5)
             app.state.ws_origins = origins
             async with mcp_app.lifespan(app):
@@ -89,7 +99,7 @@ def create_app(database_url=None, *, storage_root=None, redis_url=None):
         finally:
             if hasattr(app.state,'ws_redis'):
                 await app.state.ws_redis.aclose()
-            if client:
+            for client in clients.values():
                 await client.aio.aclose()
             await engine.dispose()
 

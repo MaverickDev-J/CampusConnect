@@ -3,13 +3,15 @@ import asyncio
 import json
 import logging
 from contextlib import aclosing
+from pathlib import PurePath
+import re
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import StreamingResponse
 from api.dependencies import get_current_user
 from api.routers.chat import CreateSessionBody, ChatMessageBody, RenameSessionBody
 from database.postgres import principal_session
 from sqlalchemy import text
-from core.gemini_budget import BudgetExhausted
+from core.gemini_budget import BudgetExhausted,ProviderUnavailable
 from core.telemetry import RunTrace,current_trace,stage,save_trace
 
 router = APIRouter(prefix="/api/chat", tags=["Chat"])
@@ -27,8 +29,33 @@ def sse(kind, data):
 @router.get("/quick-prompts")
 async def quick_prompts(request: Request, classroom_id: str, principal=Depends(get_current_user)):
     await request.app.state.files.authorize(principal, classroom_id)
-    # Avoid an extra generation request when quota is needed for answers.
-    return {"prompts": []}
+    # Recommendations must remain available during provider outages and must
+    # never spend the answer budget just because a student opens this screen.
+    async with principal_session(request.app.state.chat.factory, principal['user_id']) as session:
+        rows = (await session.execute(text('''SELECT f.file_id,f.original_name FROM files f
+          JOIN file_revisions r ON r.file_id=f.file_id AND r.revision=f.active_revision
+          WHERE f.classroom_id=:classroom AND f.status='ready' AND r.status='ready'
+          AND r.embedding_namespace=:namespace
+          AND EXISTS (SELECT 1 FROM chunks c WHERE c.file_id=f.file_id
+            AND c.revision=f.active_revision AND c.embedding IS NOT NULL)
+          ORDER BY f.uploaded_at DESC,f.file_id LIMIT 4'''),
+          {'classroom':classroom_id,'namespace':request.app.state.rag.embeddings.settings.namespace})).mappings().all()
+    if not rows:
+        return {'prompts':[]}
+    templates = [
+        ('book','Summarize', 'Summarize the main concepts in {name} using the uploaded material.'),
+        ('bulb','Explain', 'Explain the key terms in {name} with simple examples from the material.'),
+        ('quiz','Practice', 'Create five practice questions based on {name}, with answers grounded in the material.'),
+        ('review','Revise', 'Help me revise {name}: list the important concepts and explain how they relate.'),
+    ]
+    prompts=[]
+    for index,(icon,label,template) in enumerate(templates):
+        document=rows[index % len(rows)]
+        name=re.sub(r'\s+',' ',PurePath(document['original_name']).stem).strip()[:90] or 'course notes'
+        prompts.append({'icon':{'book':'\U0001f4d6','bulb':'\U0001f4a1','quiz':'\U0001f9e0','review':'\U0001f4dd'}[icon],
+            'text':f'{label}: {name}', 'prompt':template.format(name=json.dumps(document['original_name'][:180])),
+            'file_id':document['file_id']})
+    return {'prompts':prompts}
 
 
 @router.post("/sessions", status_code=201)
@@ -116,6 +143,9 @@ async def message(session_id: str, request: Request, body: ChatMessageBody, prin
             raise
         except BudgetExhausted:
             yield sse('error', 'AI capacity is temporarily unavailable. Please try again later.')
+            yield sse('done', '')
+        except ProviderUnavailable:
+            yield sse('error', 'The AI service is temporarily unavailable. Your course materials are saved; please try again shortly.')
             yield sse('done', '')
         except Exception:
             logger.warning("PostgreSQL chat turn failed; session=%s", session_id)

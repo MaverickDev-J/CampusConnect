@@ -197,7 +197,7 @@ async def call_gemini_with_fallback(
     """
     pool = key_pool or chat_key_manager
 
-    if not pool.has_keys:
+    if not pool.has_keys and forced_client is None:
         raise RuntimeError(f"[{pool.pool_name}] No API keys configured")
 
     scoped = active_budget.get()

@@ -49,7 +49,7 @@ async def save_trace(factory, principal, classroom_id, trace, state, status, *, 
               CAST(:sources AS jsonb),CAST(:events AS jsonb))'''),
               {'id':trace.run_id,'actor':principal['user_id'],'classroom':classroom_id,'kind':kind,'origin':origin,
                'status':status,'strategy':state.get('retrieval_strategy'),'cache':state.get('cache_status','miss'),
-               'fallback':state.get('rerank_fallback_reason'),'duration':int((time.perf_counter()-trace.started)*1000),
+               'fallback':state.get('rerank_fallback_reason') or state.get('routing_fallback_reason'),'duration':int((time.perf_counter()-trace.started)*1000),
                'first':trace.first_token_ms,'sources':json.dumps([s['chunk_id'] for s in state.get('used_sources',[])]),
                'events':json.dumps(trace.events)})
     except Exception:

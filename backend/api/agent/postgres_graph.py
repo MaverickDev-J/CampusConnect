@@ -1,10 +1,12 @@
 """PostgreSQL LangGraph: reuse routing while replacing all retrieval I/O."""
 from contextlib import aclosing
+import asyncio
 from langgraph.graph import END, StateGraph
 from sqlalchemy import text
 
 from api.agent.nodes import AgentState, router_node, fast_reject_node, web_search_node, _build_synthesis_prompt, SYNTHESIS_SYSTEM_PROMPT
 from api.agent.state import UserProfile, ChatMessage, RetrievedChunk
+from api.agent.state import RouterOutput
 from api.services.retrieval.postgres_search import PostgresSearch
 from database.postgres import principal_session
 from google.genai import types
@@ -14,6 +16,7 @@ from core.telemetry import stage
 
 class PgState(AgentState):
     rerank_fallback_reason: str | None
+    routing_fallback_reason: str | None
     cache_context: str | None
     cached_answer: str | None
     cache_status: str
@@ -21,14 +24,23 @@ class PgState(AgentState):
 
 
 class PostgresRag:
-    def __init__(self, factory, embeddings, reranker=None, *, route=router_node, budget=None, cache=None):
+    def __init__(self, factory, embeddings, reranker=None, *, route=router_node, budget=None, cache=None, route_timeout=5):
+        if not 0 < route_timeout <= 15:
+            raise ValueError('Routing timeout must be positive and at most 15 seconds')
         self.factory, self.embeddings, self.reranker = factory, embeddings, reranker
         self.cache=cache
         graph = StateGraph(PgState)
         graph.add_node("entry", self.entry)
         async def scoped_router(state):
-            with budget_scope(budget, 'route'), stage('routing'):
-                return await route(state)
+            with budget_scope(budget, 'route'), stage('routing') as event:
+                try:
+                    return await asyncio.wait_for(route(state),timeout=route_timeout)
+                except TimeoutError:
+                    event['fallback_reason']='routing_timeout'
+                    return {'router_output':RouterOutput(intent='RAG_SEARCH',
+                        scope_classroom_id=state['scope_classroom_id'],confidence=0.0),
+                        'routing_fallback_reason':'routing_timeout',
+                        'processing_status':'routing_complete'}
         graph.add_node("router", scoped_router)
         graph.add_node('cache',self.cached)
         graph.add_node("embed", self.embed)

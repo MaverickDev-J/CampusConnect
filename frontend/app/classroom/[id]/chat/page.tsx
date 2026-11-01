@@ -273,8 +273,8 @@ export default function ClassroomChatPage({ params }: { params: Promise<{ id: st
                                             Welcome to your<br/><span className="text-amber-600 italic">study space.</span>
                                         </h3>
                                         <p className="text-slate-500 font-medium text-sm mb-5 max-w-md mx-auto shrink-0 leading-snug">
-                                            I've processed all materials in <span className="text-amber-600 font-bold">{classroom?.name}</span>. 
-                                            How can I help you study today?
+                                            Ask questions using the available materials in <span className="text-amber-600 font-bold">{classroom?.name}</span>.
+                                            What would you like to study today?
                                         </p>
                                         {promptsLoading ? (
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 text-left w-full overflow-hidden shrink">
