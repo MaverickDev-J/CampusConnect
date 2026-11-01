@@ -15,8 +15,9 @@ def digest(value):
 
 
 class AnswerCache:
-    def __init__(self,factory):
+    def __init__(self,factory,*,config_version=CONFIG_VERSION):
         self.factory=factory
+        self.config_version=config_version
         from api.agent.nodes import SYNTHESIS_SYSTEM_PROMPT
         self.prompt_hash=hashlib.sha256(SYNTHESIS_SYSTEM_PROMPT.encode()).hexdigest()
 
@@ -37,7 +38,7 @@ class AnswerCache:
                 return None
         history=[{'role':m.role,'content':m.content} for m in state.get('chat_history',[])]
         return digest({'actor':state['user_id'],'file':state.get('file_id'),'context':dict(row),
-                       'history':history,'config':CONFIG_VERSION,'system_prompt':self.prompt_hash})
+                       'history':history,'config':self.config_version,'system_prompt':self.prompt_hash})
 
     async def get(self,state):
         async with principal_session(self.factory,state['user_id']) as session:

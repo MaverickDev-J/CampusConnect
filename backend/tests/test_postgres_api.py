@@ -72,6 +72,7 @@ class PostgresApiFixture(unittest.IsolatedAsyncioTestCase):
         self.stack.enter_context(patch.dict(os.environ, {
             'GEMINI_API_KEY':'', 'GEMINI_API_KEYS':'', 'GEMINI_CHAT_KEYS':'',
             'GEMINI_INGESTION_KEYS':'', 'GEMINI_ROUTER_KEYS':'',
+            'GROQ_API_KEY':'','groq_api_key':'','grop_api_key':'','AI_TEXT_PROVIDER':'gemini',
         }))
         self.stack.enter_context(patch.object(settings, "JWT_SECRET", "integration-test-secret-" + "x" * 32))
         test_root = (Path(__file__).parents[1] / "storage" / "integration-tests").resolve()

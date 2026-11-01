@@ -14,6 +14,8 @@ worker_secrets = [legacy_secret, modal.Secret.from_name('campusconnect-postgres-
     required_keys=['DATABASE_URL'])]
 image = (modal.Image.debian_slim(python_version='3.11')
     .uv_sync(str(ROOT), frozen=True, uv_version='0.11.16')
+    .env({'TIKTOKEN_CACHE_DIR':'/opt/tiktoken'})
+    .run_commands("python -c \"import tiktoken; tiktoken.get_encoding('o200k_harmony')\"")
     .env({'STORAGE_DIR':'/data/storage','DEMO_ENABLED':'false','PYTHONUNBUFFERED':'1'})
     .add_local_python_source('api','core','database','models','repositories','mcp_server','postgres_main'))
 

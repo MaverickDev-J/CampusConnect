@@ -16,13 +16,14 @@ from psycopg.rows import dict_row
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--project',default=os.getenv('GEMINI_BUDGET_PROJECT','campusconnect-default'))
-    parser.add_argument('--model',choices=['gemini-3.8-flash','gemini-embedding-2'])
+    parser.add_argument('--project')
+    parser.add_argument('--model',choices=['gemini-3.8-flash','gemini-embedding-2','openai/gpt-oss-120b'])
     parser.add_argument('--show',action='store_true')
-    fields = ['rpm','input_tpm','rpd','concurrent_requests','reserve_rpm','reserve_tpm','reserve_rpd','reserve_slots']
+    fields = ['rpm','input_tpm','rpd','concurrent_requests','reserve_rpm','reserve_tpm','reserve_rpd','reserve_slots','tokens_per_day','reserve_tpd']
     for field in fields:
         parser.add_argument('--'+field.replace('_','-'),type=int)
     args = parser.parse_args()
+    args.project=args.project or (os.getenv('GROQ_BUDGET_PROJECT','groq-default') if args.model=='openai/gpt-oss-120b' else os.getenv('GEMINI_BUDGET_PROJECT','campusconnect-default'))
     changes = {field:getattr(args,field) for field in fields if getattr(args,field) is not None}
     if changes and not args.model:
         parser.error('--model is required to change limits')

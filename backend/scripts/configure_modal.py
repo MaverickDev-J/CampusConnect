@@ -26,6 +26,12 @@ def runtime_secrets(values,frontend_origin):
     if redis and urlsplit(redis).hostname not in {'localhost','127.0.0.1','redis'}:
         common['REDIS_URL']=redis
     api={**common,'DATABASE_URL':values['DATABASE_URL'],'CORS_ORIGINS':frontend_origin.rstrip('/'),'DEMO_ENABLED':'false'}
+    groq_key=values.get('GROQ_API_KEY') or values.get('groq_api_key') or values.get('grop_api_key')
+    provider=values.get('AI_TEXT_PROVIDER') or ('groq' if groq_key else 'gemini')
+    api['AI_TEXT_PROVIDER']=provider
+    if groq_key:
+        api['GROQ_API_KEY']=groq_key
+        api['GROQ_BUDGET_PROJECT']=values.get('GROQ_BUDGET_PROJECT') or 'groq-default'
     worker={**common,'DATABASE_URL':values['WORKER_DATABASE_URL']}
     return api,worker
 

@@ -380,9 +380,10 @@ Verified staging endpoints:
 Hosted registration/classrooms, isolation, protected file transfer, spawned
 Embedding 2 ingestion, retrieval, stateless MCP, outbox/WebSocket delivery and the
 authenticated quality/review UI have been checked. The original hosted apps stay
-separate. Successful live generation is still a release gate: Google returned
-HTTP 503 in the current checks. Application cooldown/fallback behavior is verified;
-that does not establish answer/draft quality or a measured reranking improvement.
+separate. The current Groq deployment has also passed live sourced student chat,
+reranking, cache replay, structured faculty drafting, required approval and
+idempotent execution. These smoke checks do not establish measured retrieval or
+answer-quality improvements; a reviewed real-data benchmark remains separate.
 
 For two API keys, set `GEMINI_CHAT_KEYS` in backend/.env for query routing,
 answers and faculty drafts; set `GEMINI_INGESTION_KEYS` for document/query
@@ -399,3 +400,34 @@ produce suggestions. The optional classification call has a five-second deadline
 on timeout, the graph continues with scoped document retrieval and records the
 routing fallback. Provider failures remain explicit errors and never become saved
 answers.
+
+Migration 011 adds Groq's combined input/output token accounting and a rolling
+24-hour token/request window, preserving Gemini's input-only Pacific-day policy.
+The initial Groq application caps are 20 RPM, 600 RPD, 7,000 total TPM and 160,000
+total tokens per rolling day, below the published baseline. Optional text stages
+leave 4,500 TPM and 20,000 daily tokens available for answers. Completed calls,
+failures and cancelled calls remain charged conservatively. Groq 429 cooldowns
+are shared; an optional stage's 5xx failure does not block an answer attempt.
+
+Set GROQ_API_KEY in backend/.env to use openai/gpt-oss-120b for routing, chat,
+reranking and faculty drafts. Lowercase groq_api_key is also accepted and is
+normalized when configuring Modal. AI_TEXT_PROVIDER=groq selects it explicitly;
+AI_TEXT_PROVIDER=gemini retains the earlier implementation. Keep
+GEMINI_INGESTION_KEYS for Gemini Embedding 2 and multimodal extraction. Model
+changes do not rebuild vectors, and provider identity versions answer caches.
+The API secret receives Groq credentials; ingestion workers do not need them.
+
+Groq uses one SDK attempt, strict JSON for non-streaming decisions/drafts/ranking,
+and plain content streaming for answers. Reasoning is explicitly excluded.
+The tokenizer vocabulary is baked into the image; no GPU or model server is
+required. Answers use bounded source excerpts and history; reranking considers
+the first six RRF candidates and preserves the remaining candidate order. This
+is an explicit latency/token tradeoff, not a claim of measured quality gains.
+Suggestions use ready file metadata without model calls. Inspect/adjust owner-only
+limits with scripts.ai_budget --model openai/gpt-oss-120b --show; input_tpm is
+the historical column name and represents total TPM for this Groq policy.
+
+Groq's documented baseline and supported features:
+https://console.groq.com/docs/rate-limits
+https://console.groq.com/docs/structured-outputs
+https://console.groq.com/docs/reasoning

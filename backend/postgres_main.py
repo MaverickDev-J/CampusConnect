@@ -5,6 +5,8 @@ Requires the non-owner runtime DATABASE_URL and applied Alembic migrations.
 """
 from contextlib import asynccontextmanager
 from functools import partial
+from groq import AsyncGroq
+import httpx
 import os
 import jwt
 from pathlib import Path
@@ -41,6 +43,8 @@ from core.gemini_budget import ProjectBudget, BudgetedGemini
 from api.services.answer_cache import AnswerCache
 from api.routers import quality
 from api.routers import postgres_admin,postgres_demo
+from core.groq_llm import GroqLLM,MODEL as GROQ_MODEL
+from api.agent.groq_nodes import GroqRouter,GroqReranker,GroqAnswer,GroqDraftGenerator
 
 
 def create_app(database_url=None, *, storage_root=None, redis_url=None):
@@ -57,6 +61,7 @@ def create_app(database_url=None, *, storage_root=None, redis_url=None):
             raise RuntimeError("A strong JWT_SECRET is required")
         engine, factory = create_session_factory(url)
         clients = {}
+        groq_client=None
         try:
             async with engine.connect() as connection:
                 role = (await connection.execute(text("""SELECT r.rolsuper OR r.rolbypassrls OR
@@ -65,7 +70,7 @@ def create_app(database_url=None, *, storage_root=None, redis_url=None):
                 if role:
                     raise RuntimeError("PostgreSQL runtime must be a non-owner role without RLS bypass")
                 version = (await connection.execute(text("SELECT version_num FROM alembic_version"))).scalar_one()
-                if version != "010_admin_demo":
+                if version != "011_groq_budget":
                     raise RuntimeError("Apply the expected database migrations before starting")
             app.state.accounts = PostgresAccounts(factory)
             app.state.classrooms = PostgresClassrooms(factory)
@@ -79,19 +84,33 @@ def create_app(database_url=None, *, storage_root=None, redis_url=None):
                 if key not in clients:
                     clients[key]=genai.Client(api_key=key)
                 return clients[key]
-            query_client=provider('GEMINI_CHAT_KEYS','GEMINI_API_KEYS','GEMINI_API_KEY')
+            groq_key=os.getenv('GROQ_API_KEY') or os.getenv('groq_api_key') or os.getenv('grop_api_key')
+            text_provider=os.getenv('AI_TEXT_PROVIDER','groq' if groq_key else 'gemini').lower()
+            if text_provider not in {'groq','gemini'}:raise RuntimeError('Unknown AI_TEXT_PROVIDER')
+            query_client=provider('GEMINI_CHAT_KEYS','GEMINI_API_KEYS','GEMINI_API_KEY') if text_provider=='gemini' else None
             retrieval_client=provider('GEMINI_INGESTION_KEYS','GEMINI_API_KEYS','GEMINI_API_KEY','GEMINI_CHAT_KEYS')
             app.state.chat = PostgresChat(factory)
             app.state.actions = CampusActions(factory)
             budget = app.state.ai_budget = ProjectBudget(factory)
-            app.state.answer_cache=AnswerCache(factory) if os.getenv('AI_ANSWER_CACHE','true').lower()=='true' else None
+            cache_config='embedding2:hybrid-rrf60:groq:'+GROQ_MODEL+':bounded-v1' if text_provider=='groq' else None
+            app.state.answer_cache=AnswerCache(factory,**({'config_version':cache_config} if cache_config else {})) if os.getenv('AI_ANSWER_CACHE','true').lower()=='true' else None
+            if text_provider=='groq':
+                if not groq_key:raise RuntimeError('GROQ_API_KEY is required for Groq text generation')
+                groq_client=AsyncGroq(api_key=groq_key.strip(),max_retries=0,timeout=httpx.Timeout(30,connect=5))
+                groq_llm=app.state.groq_llm=GroqLLM(groq_client,ProjectBudget(factory,os.getenv('GROQ_BUDGET_PROJECT','groq-default')))
+                route,reranker,answer,draft=GroqRouter(groq_llm),GroqReranker(groq_llm),GroqAnswer(groq_llm),GroqDraftGenerator(groq_llm)
+            else:
+                route=partial(router_node,client=query_client)
+                reranker=GeminiReranker(BudgetedGemini(retrieval_client,budget,'rerank')) if retrieval_client else None
+                answer=GeminiAnswer(BudgetedGemini(query_client,budget,'answer') if query_client else None)
+                draft=GeminiDraftGenerator(BudgetedGemini(query_client,budget,'draft') if query_client else None)
+            app.state.text_provider=text_provider
             app.state.rag = PostgresRag(factory, GeminiEmbeddings(retrieval_client, budget=budget),
-                GeminiReranker(BudgetedGemini(retrieval_client, budget, 'rerank')) if retrieval_client else None,
-                route=partial(router_node,client=query_client),budget=budget,cache=app.state.answer_cache)
-            app.state.answer = GeminiAnswer(BudgetedGemini(query_client, budget, 'answer') if query_client else None)
+                reranker,route=route,budget=budget,cache=app.state.answer_cache)
+            app.state.answer = answer
             app.state.documents = CampusDocuments(factory, app.state.rag, app.state.files)
             app.state.workflows = FacultyWorkflow(factory, McpDocumentsClient(app), app.state.actions,
-                GeminiDraftGenerator(BudgetedGemini(query_client, budget, 'draft') if query_client else None))
+                draft)
             app.state.ws_redis = Redis.from_url(redis_url or settings.REDIS_URL, decode_responses=True, socket_connect_timeout=5, socket_timeout=5)
             app.state.ws_origins = origins
             async with mcp_app.lifespan(app):
@@ -101,6 +120,8 @@ def create_app(database_url=None, *, storage_root=None, redis_url=None):
                 await app.state.ws_redis.aclose()
             for client in clients.values():
                 await client.aio.aclose()
+            if groq_client:
+                await groq_client.close()
             await engine.dispose()
 
     app = FastAPI(title="CampusConnect PostgreSQL staging API", lifespan=lifespan)
@@ -138,7 +159,7 @@ def create_app(database_url=None, *, storage_root=None, redis_url=None):
     async def health():
         async with app.state.accounts.factory() as session:
             await session.execute(text("SELECT 1"))
-        return {"status": "ok", "checks": {"postgresql": "ok"}, "migration_stage": "010_admin_demo"}
+        return {"status": "ok", "checks": {"postgresql": "ok"}, "migration_stage": "011_groq_budget","text_provider":app.state.text_provider}
 
     return app
 

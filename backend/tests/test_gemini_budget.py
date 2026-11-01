@@ -20,7 +20,8 @@ class GeminiBudgetTests(PostgresApiFixture):
         self.model = 'gemini-3.8-flash'
         self.budget = ProjectBudget(self.app.state.accounts.factory, self.project)
         with psycopg.connect(self.owner_url) as conn:
-            conn.execute('''INSERT INTO ai_budget_policies VALUES
+            conn.execute('''INSERT INTO ai_budget_policies(project_key,model,rpm,input_tpm,rpd,concurrent_requests,
+              reserve_rpm,reserve_tpm,reserve_rpd,reserve_slots,blocked_until) VALUES
               (%s,%s,10,100000,100,10,1,1000,1,1,NULL)''', (self.project,self.model))
 
     async def asyncTearDown(self):

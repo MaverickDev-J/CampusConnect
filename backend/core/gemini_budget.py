@@ -62,7 +62,7 @@ def _usage(response):
 
 
 def _failure(error):
-    status = getattr(error, 'code', None)
+    status = getattr(error, 'status_code', None) or getattr(error, 'code', None)
     status = status if isinstance(status, int) else None
     cooldown = 60 if status == 429 else 15 if status in (500,502,503,504) else 0
     headers = getattr(getattr(error, 'response', None), 'headers', {}) or {}
