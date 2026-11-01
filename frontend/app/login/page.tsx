@@ -118,7 +118,7 @@ export default function LoginPage() {
                     </form>
 
                     {/* Demo Login Divider + Button */}
-                    <div className="relative z-10 mt-6">
+                    {process.env.NEXT_PUBLIC_DEMO_ENABLED !== 'false' && <div className="relative z-10 mt-6">
                         <div className="relative flex items-center my-5">
                             <div className="flex-1 border-t border-slate-100" />
                             <span className="px-4 text-[10px] font-black text-slate-300 uppercase tracking-[0.25em]">
@@ -140,7 +140,7 @@ export default function LoginPage() {
                             )}
                             Try Live Demo — No Sign Up
                         </button>
-                    </div>
+                    </div>}
                 </div>
 
                 <p className="text-center mt-12 text-slate-400 text-sm font-bold">

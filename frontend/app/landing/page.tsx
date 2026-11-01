@@ -151,7 +151,7 @@ export default function LandingPage() {
                     >
                         Sign In
                     </Link>
-                    <button
+                    {process.env.NEXT_PUBLIC_DEMO_ENABLED !== 'false' && <button
                         onClick={handleDemoLogin}
                         disabled={demoLoading}
                         className="px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest bg-slate-900 text-white hover:bg-slate-800 transition-all disabled:opacity-50"
@@ -161,7 +161,7 @@ export default function LandingPage() {
                         ) : (
                             "Try Demo"
                         )}
-                    </button>
+                    </button>}
                 </div>
             </header>
 
@@ -195,7 +195,7 @@ export default function LandingPage() {
                     </p>
 
                     <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                        <motion.button
+                        {process.env.NEXT_PUBLIC_DEMO_ENABLED !== 'false' && <motion.button
                             whileHover={{ scale: 1.03 }}
                             whileTap={{ scale: 0.97 }}
                             onClick={handleDemoLogin}
@@ -211,7 +211,7 @@ export default function LandingPage() {
                                     <ArrowRight size={20} />
                                 </>
                             )}
-                        </motion.button>
+                        </motion.button>}
 
                         <Link
                             href="/login"

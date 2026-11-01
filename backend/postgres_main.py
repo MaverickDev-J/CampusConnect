@@ -38,6 +38,7 @@ from mcp_server.client import McpDocumentsClient
 from core.gemini_budget import ProjectBudget, BudgetedGemini
 from api.services.answer_cache import AnswerCache
 from api.routers import quality
+from api.routers import postgres_admin,postgres_demo
 
 
 def create_app(database_url=None, *, storage_root=None, redis_url=None):
@@ -58,7 +59,7 @@ def create_app(database_url=None, *, storage_root=None, redis_url=None):
                 if role:
                     raise RuntimeError("PostgreSQL runtime must be a non-owner role without RLS bypass")
                 version = (await connection.execute(text("SELECT version_num FROM alembic_version"))).scalar_one()
-                if version != "009_quality_cache":
+                if version != "010_admin_demo":
                     raise RuntimeError("Apply the expected database migrations before starting")
             app.state.accounts = PostgresAccounts(factory)
             app.state.classrooms = PostgresClassrooms(factory)
@@ -116,6 +117,8 @@ def create_app(database_url=None, *, storage_root=None, redis_url=None):
     app.include_router(postgres_socket.router)
     app.include_router(workflows.router)
     app.include_router(quality.router)
+    app.include_router(postgres_admin.router)
+    app.include_router(postgres_demo.router)
 
     @app.get("/health")
     async def health():

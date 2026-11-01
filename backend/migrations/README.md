@@ -323,3 +323,13 @@ between cases for light API use, and records the source commit/dirty state.
 Reports reject old corpus snapshots, inaccessible evidence and unrecorded runs.
 Do not claim measured accuracy gains or a reviewed 60-case corpus until that
 dataset and live model evaluation have actually been completed.
+
+Migration 010 completes administrator account routes and isolates public demo
+sessions into individual, one-hour guest identities. Demo access defaults off
+(`DEMO_ENABLED=false`, `NEXT_PUBLIC_DEMO_ENABLED=false`) and does not seed any
+users, classrooms or files. Enable it only after deliberately curating the fixed
+demo classroom. Administrator actions recheck the current database role; account
+deletion refuses to silently erase owned classrooms, files or posts.
+
+The new Neon deployment starts with fresh user-created data. Importing the old
+MongoDB/Chroma dataset is outside the selected rollout.

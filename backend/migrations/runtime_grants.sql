@@ -30,3 +30,5 @@ GRANT SELECT,INSERT,UPDATE,DELETE ON answer_cache TO :"runtime_role";
 GRANT SELECT,INSERT ON ai_runs,evaluation_runs TO :"runtime_role";
 GRANT SELECT ON classroom_corpora TO :"runtime_role";
 GRANT EXECUTE ON FUNCTION public.lock_corpus(text) TO :"runtime_role";
+GRANT SELECT(demo_expires_at) ON users TO :"runtime_role";
+GRANT EXECUTE ON FUNCTION public.delete_campus_user(text),public.create_demo_guest(text,text) TO :"runtime_role";

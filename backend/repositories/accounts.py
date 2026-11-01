@@ -39,7 +39,7 @@ class PostgresAccounts:
 
     async def by_id(self, user_id):
         async with principal_session(self.factory, user_id) as session:
-            row = (await session.execute(text("SELECT user_id,email,name,role,profile FROM users WHERE user_id=:id"), {"id": user_id})).mappings().first()
+            row = (await session.execute(text("SELECT user_id,email,name,role,profile FROM users WHERE user_id=:id AND (demo_expires_at IS NULL OR demo_expires_at>now())"), {"id": user_id})).mappings().first()
             return dict(row) if row else None
 
     async def create(self, user):

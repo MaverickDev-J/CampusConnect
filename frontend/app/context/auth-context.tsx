@@ -226,7 +226,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const clearError = useCallback(() => setError(null), []);
 
     // ── Demo detection ──────────────────────────────────────
-    const isDemo = user?.user_id === "stu_demo_guest";
+    const isDemo = user?.user_id === "stu_demo_guest" || user?.profile?.is_demo === true;
 
     return (
         <AuthContext.Provider
