@@ -6,6 +6,7 @@ from fastmcp.client.transports import StreamableHttpTransport
 from fastmcp.exceptions import ToolError
 
 from mcp_server.auth import issue_mcp_token
+from core.telemetry import stage
 
 
 class McpDocumentsClient:
@@ -24,6 +25,7 @@ class McpDocumentsClient:
             auth=issue_mcp_token(principal['user_id'], principal['role']), httpx_client_factory=client_factory)
         try:
             async with Client(transport, timeout=45) as client:
-                return (await client.call_tool('search_documents', {'classroom_id': classroom_id, 'query': query})).data
+                with stage('mcp.client.search_documents'):
+                    return (await client.call_tool('search_documents', {'classroom_id': classroom_id, 'query': query})).data
         except (ToolError, httpx.HTTPError, TimeoutError):
             raise HTTPException(503, 'Course document tools are unavailable; please retry') from None

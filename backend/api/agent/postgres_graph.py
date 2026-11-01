@@ -15,6 +15,7 @@ from core.telemetry import stage
 
 
 class PgState(AgentState):
+    cache_bypass: bool
     rerank_fallback_reason: str | None
     routing_fallback_reason: str | None
     cache_context: str | None
@@ -59,6 +60,8 @@ class PostgresRag:
         self.graph = graph.compile()
 
     async def cached(self,state):
+        if state.get('cache_bypass'):
+            return {'cache_status':'bypassed'}
         if not self.cache:
             return {'cache_status':'disabled'}
         try:

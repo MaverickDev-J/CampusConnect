@@ -5,7 +5,7 @@ import logging
 from contextlib import aclosing
 from pathlib import PurePath
 import re
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, HTTPException
 from fastapi.responses import StreamingResponse
 from api.dependencies import get_current_user
 from api.routers.chat import CreateSessionBody, ChatMessageBody, RenameSessionBody
@@ -90,15 +90,19 @@ async def delete(session_id: str, request: Request, principal=Depends(get_curren
 @router.post("/sessions/{session_id}/message")
 async def message(session_id: str, request: Request, body: ChatMessageBody, principal=Depends(get_current_user)):
     store = request.app.state.chat
+    if body.origin!='live' or body.bypass_cache:
+        if principal.get('role') not in ('teacher','superadmin'):
+            raise HTTPException(403,'Faculty access required for evaluation controls')
     saved = await store.acquire(principal, session_id, body.scope_classroom_id)
 
     async def events():
-        trace=RunTrace()
+        trace=RunTrace(resource_type='chat_session',resource_id=session_id)
         trace_token=current_trace.set(trace)
         outcome='error'
         state = {"query": body.query, "session_id": session_id, "user_id": principal["user_id"],
                  "scope_classroom_id": saved["classroom_id"], "file_id": saved["file_id"], "reasoning": [],
-                 "used_sources": [], "retrieved_chunks": [], "no_chunks_found": False}
+                 "used_sources": [], "retrieved_chunks": [], "no_chunks_found": False,
+                 "cache_bypass":body.bypass_cache or body.origin!='live'}
         try:
             async with asyncio.timeout(120):
                 yield sse("status", "Searching course materials...")
@@ -131,7 +135,7 @@ async def message(session_id: str, request: Request, body: ChatMessageBody, prin
                         if active != len(sources):
                             raise RuntimeError("Evidence changed during generation")
                 await store.finish(principal, saved, body.query, ''.join(answer), state.get("used_sources", []))
-                if not state.get('cached_answer') and getattr(request.app.state,'answer_cache',None):
+                if not state.get('cache_bypass') and not state.get('cached_answer') and getattr(request.app.state,'answer_cache',None):
                     await request.app.state.answer_cache.put(state,''.join(answer))
                 yield sse("sources", state.get("used_sources", []))
                 if state.get("rerank_fallback_reason"):
@@ -156,7 +160,7 @@ async def message(session_id: str, request: Request, body: ChatMessageBody, prin
                 current_trace.reset(trace_token)
             except ValueError:
                 pass
-            await save_trace(store.factory,principal,saved['classroom_id'],trace,state,outcome)
+            await save_trace(store.factory,principal,saved['classroom_id'],trace,state,outcome,origin=body.origin)
             try:
                 await store.release(principal, saved)
             except Exception:

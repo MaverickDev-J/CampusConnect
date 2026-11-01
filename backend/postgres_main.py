@@ -70,7 +70,7 @@ def create_app(database_url=None, *, storage_root=None, redis_url=None):
                 if role:
                     raise RuntimeError("PostgreSQL runtime must be a non-owner role without RLS bypass")
                 version = (await connection.execute(text("SELECT version_num FROM alembic_version"))).scalar_one()
-                if version != "011_groq_budget":
+                if version != "012_operations":
                     raise RuntimeError("Apply the expected database migrations before starting")
             app.state.accounts = PostgresAccounts(factory)
             app.state.classrooms = PostgresClassrooms(factory)
@@ -159,7 +159,7 @@ def create_app(database_url=None, *, storage_root=None, redis_url=None):
     async def health():
         async with app.state.accounts.factory() as session:
             await session.execute(text("SELECT 1"))
-        return {"status": "ok", "checks": {"postgresql": "ok"}, "migration_stage": "011_groq_budget","text_provider":app.state.text_provider}
+        return {"status": "ok", "checks": {"postgresql": "ok"}, "migration_stage": "012_operations","text_provider":app.state.text_provider}
 
     return app
 

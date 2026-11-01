@@ -10,7 +10,7 @@ import { useClassrooms } from "@/app/hooks/useClassrooms";
 import { API_BASE_URL } from "@/app/config";
 
 type Stage = { stage: string; duration_ms?: number; offset_ms?: number; status?: string; input_tokens?: number | null; output_tokens?: number | null; fallback_reason?: string | null };
-type Run = { run_id: string; kind: string; origin: string; status: string; duration_ms: number; cache_status: string; strategy: string | null; fallback_reason: string | null; events: Stage[]; created_at: string };
+type Run = { run_id: string; trace_id?: string; parent_run_id?: string; resource_type?: string; resource_id?: string; kind: string; origin: string; status: string; duration_ms: number; cache_status: string; strategy: string | null; fallback_reason: string | null; events: Stage[]; created_at: string };
 type Overview = { requests: number; errors: number; cancelled: number; fallbacks: number; cache_hits: number; p50_ms: number | null; p95_ms: number | null; usage: { input_tokens: number | null; output_tokens: number | null; measured_calls: number } };
 type Source = { chunk_id: string; file_name: string; page_number: number | null; chunk_preview: string };
 type Comparison = { run_id: string; corpus_version: number; strategies: Record<string, { status: string; sources: Source[]; candidate_ids: string[]; duration_ms?: number; fallback_reason?: string | null; strategy?: string; reason?: string }> };
@@ -31,6 +31,7 @@ export default function QualityPage() {
     const [comparison, setComparison] = useState<Comparison | null>(null);
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState("");
+    const [trace, setTrace] = useState<{ trace_id: string; runs: Run[]; has_more: boolean } | null>(null);
     const allowed = user?.role === "teacher" || user?.role === "superadmin";
 
     useEffect(() => { if (!classroomId && courses.length) setClassroomId(courses[0].classroom_id); }, [classroomId, courses]);
@@ -41,6 +42,12 @@ export default function QualityPage() {
         if (!response.ok) throw new Error(typeof data.detail === "string" ? data.detail : "Could not load quality data.");
         return data as T;
     }, [user?.token]);
+    useEffect(() => {
+        if (!user?.token) return;
+        const params = new URLSearchParams(window.location.search);
+        if (params.get("classroom_id")) setClassroomId(params.get("classroom_id")!);
+        if (params.get("trace_id")) request<{ trace_id: string; runs: Run[]; has_more: boolean }>(`/traces/${encodeURIComponent(params.get("trace_id")!)}`).then(setTrace).catch(err => setError(err.message));
+    }, [user?.token, request]);
     const reload = useCallback(async () => {
         if (!classroomId || !user?.token || !allowed) return;
         const scope = `classroom_id=${encodeURIComponent(classroomId)}`;
@@ -100,9 +107,17 @@ export default function QualityPage() {
                 {runs.map(run => <details key={run.run_id} className="rounded-xl border border-slate-200 bg-white p-4">
                     <summary className="cursor-pointer text-sm font-bold text-slate-700">{run.kind} · {run.origin} · {run.status} · {run.duration_ms} ms · cache {run.cache_status}</summary>
                     <p className="mt-2 text-xs text-slate-500">{new Date(run.created_at).toLocaleString()} · {run.strategy || "Strategy unavailable"}{run.fallback_reason ? ` · Fallback: ${run.fallback_reason}` : ""}</p>
+                    {run.resource_id && <p className="mt-2 text-xs text-slate-500">{run.resource_type}: {run.resource_id}</p>}
+                    <button className="mt-3 text-xs font-bold text-indigo-700" onClick={() => request<{ trace_id: string; runs: Run[]; has_more: boolean }>(`/traces/${encodeURIComponent(run.trace_id || run.run_id)}`).then(setTrace).catch(err => setError(err.message))}>Show related activity</button>
                     <ol className="mt-4 space-y-2">{run.events.filter(event => event.duration_ms != null).sort((a, b) => (a.offset_ms || 0) - (b.offset_ms || 0)).map((event, i) => <li key={i} className="flex justify-between gap-3 rounded-lg bg-slate-50 p-3 text-xs"><span>{event.stage} · {event.status}</span><span>{event.duration_ms} ms</span></li>)}</ol>
                 </details>)}
             </section>
+            {trace && <section className="rounded-xl border border-indigo-200 bg-white p-5 space-y-3" aria-label="Related operation trace">
+                <div className="flex justify-between"><h2 className="font-bold">Related activity</h2><button onClick={() => setTrace(null)}>Close</button></div>
+                <p className="text-xs text-slate-500">{trace.trace_id}</p>
+                {trace.runs.map(run => <div key={run.run_id} className="rounded-lg bg-slate-50 p-3 text-sm"><p>{run.kind} · {run.status} · {run.duration_ms} ms</p><p className="text-xs text-slate-500">{run.resource_type} {run.resource_id}</p><ul>{run.events.map((event, i) => <li key={i} className="text-xs">{event.stage} · {event.status} · {event.duration_ms ?? "—"} ms</li>)}</ul></div>)}
+                {trace.has_more && <p className="text-xs text-slate-500">Showing the first 200 operations.</p>}
+            </section>}
             <section className="space-y-4"><h2 className="text-xl font-bold text-slate-900">Evaluation history</h2>
                 {!reports.length && <p className="text-sm text-slate-500">No evaluations yet. Run the benchmark CLI with a labeled dataset to save a report here.</p>}
                 {reports.map(report => <article key={report.evaluation_id} className="rounded-xl border border-slate-200 bg-white p-5 space-y-3">

@@ -7,6 +7,7 @@ import { API_BASE_URL } from "@/app/config";
 type Payload = { title: string; announcement: string; description: string; date: string };
 type Source = { chunk_id: string; file_id: string; file_name: string; page_number: number | null; text: string };
 type Draft = {
+    trace_id?: string;
     workflow_id: string; topic: string; payload: Payload; version: number; payload_hash: string;
     status: "awaiting_approval" | "approved" | "completed" | "rejected";
     sources: Source[]; expires_at: string;
@@ -98,6 +99,7 @@ export default function RevisionSessionPanel({ classroomId, token, onPublished }
                 <select aria-label="Saved revision drafts" disabled={busy} value={selectedId} onChange={e => setSelectedId(e.target.value)} className={`${inputStyle} mt-1`}>
                     {drafts.map(draft => <option key={draft.workflow_id} value={draft.workflow_id}>{draft.payload.title} — {statusText[draft.status]}</option>)}
                 </select>
+                {selected?.trace_id && <a className="mt-3 inline-block text-sm font-bold text-indigo-700" href={`/quality?classroom_id=${encodeURIComponent(classroomId)}&trace_id=${encodeURIComponent(selected.trace_id)}`}>View execution trace</a>}
             </label>}
             {selected && payload && <div className="space-y-4 border-t border-slate-100 pt-5">
                 <p className="text-sm font-bold text-amber-800" aria-live="polite">{statusText[selected.status]} · Version {selected.version}</p>

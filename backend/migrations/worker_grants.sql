@@ -7,3 +7,4 @@ GRANT EXECUTE ON FUNCTION public.claim_campus_event(text), public.finish_campus_
 GRANT EXECUTE ON FUNCTION public.claim_storage_cleanup(text), public.cleanup_path_in_use(text),
     public.finish_storage_cleanup(text,text,boolean) TO :"runtime_role";
 GRANT EXECUTE ON FUNCTION public.defer_ingestion_job(text,text,integer) TO :"runtime_role";
+GRANT EXECUTE ON FUNCTION public.prune_ai_history(integer) TO :"runtime_role";

@@ -9,6 +9,7 @@ from pydantic import Field
 
 from mcp_server.auth import CampusTokenVerifier, tool_principal
 from api.agent.faculty_workflow import PrepareRevision
+from core.telemetry import operation_trace
 
 Identifier = Annotated[str, Field(min_length=1, max_length=100)]
 Offset = Annotated[int, Field(ge=0, le=100000)]
@@ -19,7 +20,16 @@ def create_mcp(app):
 
     async def call(operation, *args, faculty=False, **kwargs):
         try:
-            return await operation(await tool_principal(app, faculty=faculty), *args, **kwargs)
+            principal=await tool_principal(app,faculty=faculty)
+            scope=None
+            if args:
+                if isinstance(args[0],PrepareRevision):scope=args[0].classroom_id
+                elif operation.__name__ in {'search','get_document'}:scope=args[0]
+                elif operation.__name__ in {'get','execute'}:
+                    scope=(await app.state.workflows.get(principal,args[0]))['classroom_id']
+            async with operation_trace(app.state.accounts.factory,principal,scope,
+                    'mcp.server.'+operation.__name__,kind='mcp',join=True):
+                return await operation(principal,*args,**kwargs)
         except HTTPException as exc:
             raise ToolError(str(exc.detail)) from None
 

@@ -10,6 +10,7 @@ from api.dependencies import get_current_user
 from api.routers.upload import ALL_ALLOWED, MAX_FILE_SIZE, _mime_to_file_type
 from core.security import decode_access_token
 import jwt
+from core.telemetry import operation_trace
 
 router = APIRouter(tags=["Files"])
 
@@ -30,6 +31,14 @@ def public_metadata(document):
 @router.post("/api/upload/file", status_code=202)
 async def upload(request: Request, file: UploadFile = File(...), classroom_id: str = Form(...),
                  doc_type: str | None = Form(None), principal=Depends(get_current_user)):
+    async with operation_trace(request.app.state.files.factory,principal,classroom_id,'upload.enqueue',
+            kind='ingestion',resource_type='file') as trace:
+        result=await _upload(request,file,classroom_id,doc_type,principal)
+        trace.resource_id=result['file_id']
+        return result
+
+
+async def _upload(request,file,classroom_id,doc_type,principal):
     await request.app.state.files.authorize(principal, classroom_id, write=True)
     mime = file.content_type or ""
     if mime not in ALL_ALLOWED:
@@ -108,4 +117,7 @@ async def retry(file_id: str, request: Request, principal=Depends(get_current_us
 
 @router.delete('/api/files/{file_id}', status_code=202)
 async def remove_file(file_id: str, request: Request, principal=Depends(get_current_user)):
-    return await request.app.state.files.delete(principal, file_id)
+    document=await request.app.state.files.get(principal,file_id)
+    async with operation_trace(request.app.state.files.factory,principal,document['classroom_id'],'file.delete',
+            kind='cleanup',resource_type='file',resource_id=file_id):
+        return await request.app.state.files.delete(principal,file_id)

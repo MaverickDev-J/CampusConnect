@@ -47,12 +47,29 @@ class QualityCacheTests(PostgresApiFixture):
         self.assertEqual(self.route.await_count,1)
         self.assertIn('Verified answer 1',first.text)
         self.assertIn('Verified answer 1',second.text)
-        overview=(await self.client.get('/api/quality/overview',params={'classroom_id':self.cid},headers=self.headers)).json()
+        overview=(await self.client.get('/api/quality/overview',params={'classroom_id':self.cid,'kind':'chat'},headers=self.headers)).json()
         self.assertEqual((overview['requests'],overview['cache_hits']),(2,1))
         self.assertIsNone(overview['usage']['input_tokens'])
         runs=(await self.client.get('/api/quality/runs',params={'classroom_id':self.cid},headers=self.headers)).json()['runs']
         self.assertNotIn('PRIVATE_QUESTION_123',json.dumps(runs))
         self.assertTrue(any(run['cache_status']=='exact' for run in runs))
+
+    async def test_benchmark_chat_bypasses_cache_and_requires_faculty(self):
+        await self.prepared()
+        await self.ask()
+        session=(await self.client.post('/api/chat/sessions',headers=self.headers,json={'classroom_id':self.cid})).json()['session_id']
+        for _ in range(2):
+            response=await self.client.post('/api/chat/sessions/'+session+'/message',headers=self.headers,
+                json={'query':'PRIVATE_QUESTION_123','origin':'benchmark','bypass_cache':True})
+            self.assertEqual(response.status_code,200,response.text)
+            self.assertNotIn('"t": "error"',response.text)
+        self.assertEqual(self.answers,3)
+        overview=(await self.client.get('/api/quality/overview',params={'classroom_id':self.cid,'origin':'benchmark','kind':'chat'},headers=self.headers)).json()
+        self.assertEqual((overview['requests'],overview['cache_hits']),(2,0))
+        _,student_headers=await self.account('benchmark-student')
+        rejected=await self.client.post('/api/chat/sessions/'+session+'/message',headers=student_headers,
+            json={'query':'test','origin':'benchmark'})
+        self.assertEqual(rejected.status_code,403)
 
     async def test_corpus_changes_expiry_and_deleted_sources_invalidate_reuse(self):
         await self.prepared()
@@ -108,9 +125,9 @@ class QualityCacheTests(PostgresApiFixture):
         self.assertFalse(report.json()['generation_evaluated'])
         self.assertEqual(report.json()['summary']['hybrid']['recall_at_12'],1)
         self.assertEqual(report.json()['summary']['hybrid_rerank']['fallback_cases'],1)
-        overview=(await self.client.get('/api/quality/overview',headers=self.headers,params={'classroom_id':self.cid})).json()
+        overview=(await self.client.get('/api/quality/overview',headers=self.headers,params={'classroom_id':self.cid,'kind':'comparison'})).json()
         self.assertEqual(overview['requests'],0)
-        overview=(await self.client.get('/api/quality/overview',headers=self.headers,params={'classroom_id':self.cid,'origin':'benchmark'})).json()
+        overview=(await self.client.get('/api/quality/overview',headers=self.headers,params={'classroom_id':self.cid,'origin':'benchmark','kind':'comparison'})).json()
         self.assertEqual(overview['requests'],1)
         self.assertEqual(len((await self.client.get('/api/quality/evaluations',headers=self.headers,params={'classroom_id':self.cid})).json()['evaluations']),1)
         # Changed corpora cannot be compared against old labels/run snapshots.

@@ -100,6 +100,16 @@ async def rescue():
     """Recover a missed enqueue or expired worker lease, with bounded idle cost."""
     await ingest.spawn.aio()
     await deliver.spawn.aio()
+    await retain.spawn.aio()
+
+
+@app.function(image=image,secrets=worker_secrets,timeout=60,memory=256,max_containers=1,region='ap')
+async def retain():
+    from core.maintenance import prune_history
+    from database.postgres import create_session_factory
+    engine,factory=create_session_factory(os.environ['DATABASE_URL'],pool_size=1)
+    try:return await prune_history(factory)
+    finally:await engine.dispose()
 
 
 @app.function(image=image,secrets=api_secrets,volumes={'/data':volume},timeout=90,memory=512,region='ap')

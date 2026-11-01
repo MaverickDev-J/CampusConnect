@@ -5,7 +5,7 @@ import math
 from typing import Literal
 from uuid import uuid4
 
-from fastapi import APIRouter,Depends,HTTPException,Query,Request
+from fastapi import APIRouter,Depends,HTTPException,Query,Request,Path
 from pydantic import BaseModel,Field
 from sqlalchemy import text
 
@@ -15,6 +15,14 @@ from core.telemetry import RunTrace,current_trace,stage,save_trace
 from database.postgres import principal_session
 
 router=APIRouter(prefix='/api/quality',tags=['Quality'])
+
+
+@router.get('/traces/{trace_id}')
+async def trace_detail(request:Request,trace_id:str=Path(min_length=1,max_length=100),principal=Depends(get_current_user)):
+    async with principal_session(request.app.state.accounts.factory,principal['user_id']) as session:
+        rows=(await session.execute(text('SELECT * FROM ai_runs WHERE trace_id=:id ORDER BY created_at,run_id LIMIT 201'),{'id':trace_id})).mappings().all()
+    if not rows:raise HTTPException(404,'Trace not found')
+    return {'trace_id':trace_id,'runs':[dict(row) for row in rows[:200]],'has_more':len(rows)>200}
 
 
 async def faculty(request,principal,classroom_id):
@@ -27,7 +35,8 @@ async def faculty(request,principal,classroom_id):
 
 
 @router.get('/overview')
-async def overview(request:Request,classroom_id:str,origin:Literal['live','synthetic','benchmark']='live',principal=Depends(get_current_user)):
+async def overview(request:Request,classroom_id:str,origin:Literal['live','synthetic','benchmark']='live',
+                   kind:Literal['all','chat','comparison','evaluation','workflow','mcp','ingestion','delivery','cleanup']='all',principal=Depends(get_current_user)):
     await faculty(request,principal,classroom_id)
     async with principal_session(request.app.state.accounts.factory,principal['user_id']) as session:
         row=(await session.execute(text('''SELECT count(*) AS requests,count(*) FILTER(WHERE status='error') AS errors,
@@ -35,16 +44,16 @@ async def overview(request:Request,classroom_id:str,origin:Literal['live','synth
           count(*) FILTER(WHERE cache_status='exact') AS cache_hits,
           percentile_cont(0.5) WITHIN GROUP(ORDER BY duration_ms) AS p50_ms,
           percentile_cont(0.95) WITHIN GROUP(ORDER BY duration_ms) AS p95_ms
-          FROM ai_runs WHERE classroom_id=:id AND origin=:origin AND created_at>now()-interval '14 days' '''),
-          {'id':classroom_id,'origin':origin})).mappings().one()
+          FROM ai_runs WHERE classroom_id=:id AND origin=:origin AND (:kind='all' OR kind=:kind) AND created_at>now()-interval '14 days' '''),
+          {'id':classroom_id,'origin':origin,'kind':kind})).mappings().one()
         usage=(await session.execute(text('''SELECT
           sum((event->>'input_tokens')::bigint) AS input_tokens,
           sum((event->>'output_tokens')::bigint) AS output_tokens,
           count(*) FILTER(WHERE event->>'input_tokens' IS NOT NULL) AS measured_calls
           FROM ai_runs r CROSS JOIN LATERAL jsonb_array_elements(r.events) event
           WHERE r.classroom_id=:id AND r.origin=:origin AND r.created_at>now()-interval '14 days'
-          AND event->>'stage' LIKE 'provider.%%' '''),{'id':classroom_id,'origin':origin})).mappings().one()
-        return {**dict(row),'usage':dict(usage),'origin':origin,'window_days':14,'cost_estimate':None}
+          AND (:kind='all' OR r.kind=:kind) AND event->>'stage' LIKE 'provider.%%' '''),{'id':classroom_id,'origin':origin,'kind':kind})).mappings().one()
+        return {**dict(row),'usage':dict(usage),'origin':origin,'kind':kind,'window_days':14,'cost_estimate':None}
 
 
 @router.get('/runs')

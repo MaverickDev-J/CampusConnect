@@ -17,6 +17,7 @@ from sqlalchemy import text
 from api.routers.announcements import CreateAnnouncementBody
 from api.routers.postgres_campus import EventBody
 from database.postgres import principal_session
+from core.telemetry import operation_trace,current_trace
 from core.gemini_budget import BudgetExhausted
 
 
@@ -178,9 +179,15 @@ class FacultyWorkflow:
     def public(row):
         # Source excerpts are untrusted evidence, never executable instructions.
         return {key: row[key] for key in ('workflow_id','classroom_id','topic','payload','payload_hash','sources',
-                'version','status','approved_at','created_at','updated_at','expires_at','result')}
+                'version','status','approved_at','created_at','updated_at','expires_at','result','trace_id')}
 
     async def prepare(self, principal, body):
+        async with operation_trace(self.factory,principal,body.classroom_id,'workflow.prepare',kind='workflow',resource_type='workflow') as trace:
+            result=await self._prepare(principal,body)
+            trace.resource_id=result['workflow_id']
+            return result
+
+    async def _prepare(self, principal, body):
         async with principal_session(self.factory, principal['user_id']) as session:
             await self._authorize(session, body.classroom_id)
         sources = (await self.documents.search(principal, body.classroom_id, body.topic))['sources']
@@ -193,10 +200,11 @@ class FacultyWorkflow:
             await self._authorize(session, body.classroom_id)
             await self._validate_sources(session, {'classroom_id': body.classroom_id, 'sources': sources})
             await session.execute(text('''INSERT INTO faculty_workflows
-              (workflow_id,actor_id,classroom_id,topic,payload,payload_hash,sources)
-              VALUES (:id,:actor,:classroom,:topic,CAST(:payload AS jsonb),:hash,CAST(:sources AS jsonb))'''),
+              (workflow_id,actor_id,classroom_id,topic,payload,payload_hash,sources,trace_id)
+              VALUES (:id,:actor,:classroom,:topic,CAST(:payload AS jsonb),:hash,CAST(:sources AS jsonb),:trace)'''),
               {'id': workflow_id, 'actor': principal['user_id'], 'classroom': body.classroom_id,
-               'topic': body.topic, 'payload': json.dumps(payload), 'hash': payload_hash(payload), 'sources': json.dumps(sources)})
+               'topic': body.topic, 'payload': json.dumps(payload), 'hash': payload_hash(payload), 'sources': json.dumps(sources),
+               'trace':current_trace.get().trace_id})
             graph = await self._graph(session, principal)
             await graph.ainvoke({'workflow_id': workflow_id}, {'configurable': {'thread_id': workflow_id}}, durability='sync')
             return self.public(await self._load(session, workflow_id))
@@ -213,6 +221,9 @@ class FacultyWorkflow:
             return {'workflows': [self.public(row) for row in rows]}
 
     async def edit(self, principal, workflow_id, body):
+        return await self._mutation(principal,workflow_id,'edit',lambda:self._edit(principal,workflow_id,body))
+
+    async def _edit(self, principal, workflow_id, body):
         async with principal_session(self.factory, principal['user_id']) as session:
             row = await self._load(session, workflow_id, lock=True)
             self._reviewable(row, body.version, body.payload_hash)
@@ -225,6 +236,10 @@ class FacultyWorkflow:
             return self.public(await self._load(session, workflow_id))
 
     async def review(self, principal, workflow_id, body, *, approve):
+        return await self._mutation(principal,workflow_id,'approve' if approve else 'reject',
+            lambda:self._review(principal,workflow_id,body,approve=approve))
+
+    async def _review(self, principal, workflow_id, body, *, approve):
         async with principal_session(self.factory, principal['user_id']) as session:
             row = await self._load(session, workflow_id, lock=True)
             self._reviewable(row, body.version, body.payload_hash)
@@ -239,6 +254,16 @@ class FacultyWorkflow:
             return self.public(await self._load(session, workflow_id))
 
     async def execute(self, principal, workflow_id):
+        return await self._mutation(principal,workflow_id,'execute',lambda:self._execute(principal,workflow_id))
+
+    async def _mutation(self,principal,workflow_id,operation,callback):
+        async with principal_session(self.factory,principal['user_id']) as session:
+            row=await self._load(session,workflow_id)
+        async with operation_trace(self.factory,principal,row['classroom_id'],'workflow.'+operation,
+                kind='workflow',trace_id=row['trace_id'],resource_type='workflow',resource_id=workflow_id):
+            return await callback()
+
+    async def _execute(self, principal, workflow_id):
         async with principal_session(self.factory, principal['user_id']) as session:
             row = await self._load(session, workflow_id, lock=True)
             if row['status'] == 'completed':

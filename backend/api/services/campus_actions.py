@@ -6,6 +6,7 @@ from uuid import uuid4
 from fastapi import HTTPException
 from sqlalchemy import text
 from database.postgres import principal_session
+from core.telemetry import current_trace
 
 
 class CampusActions:
@@ -48,9 +49,11 @@ class CampusActions:
         await self._event(session, principal, resource, classroom, "announcement_updated" if kind == "announcement" else "calendar_updated")
 
     async def _event(self, session, principal, resource, classroom, kind):
-        await session.execute(text("""INSERT INTO campus_outbox(event_id,actor_id,classroom_id,event_type,resource_id)
-          VALUES (:id,:actor,:classroom,:kind,:resource)"""), {"id": uuid4().hex, "actor": principal["user_id"],
-          "classroom": classroom, "kind": kind, "resource": resource})
+        trace=current_trace.get()
+        await session.execute(text("""INSERT INTO campus_outbox(event_id,actor_id,classroom_id,event_type,resource_id,trace_id,parent_run_id)
+          VALUES (:id,:actor,:classroom,:kind,:resource,:trace,:parent)"""), {"id": uuid4().hex, "actor": principal["user_id"],
+          "classroom": classroom, "kind": kind, "resource": resource,
+          'trace':trace.trace_id if trace else None,'parent':trace.run_id if trace else None})
 
     async def _announcement(self, session, principal, body):
         await self._authorize(session, body.classroom_id, write=True)

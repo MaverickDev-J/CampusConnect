@@ -18,5 +18,8 @@ async def principal_session(factory, user_id: str):
     async with factory() as session:
         async with session.begin():
             # The third argument makes identity local to the transaction.
-            await session.execute(text("SELECT set_config('app.user_id', :user_id, true)"), {"user_id": user_id})
+            from core.telemetry import current_trace
+            trace=current_trace.get()
+            await session.execute(text("SELECT set_config('app.user_id',:user,true),set_config('app.trace_id',:trace,true),set_config('app.run_id',:run,true)"),
+                {'user':user_id,'trace':trace.trace_id if trace else '', 'run':trace.run_id if trace else ''})
             yield session

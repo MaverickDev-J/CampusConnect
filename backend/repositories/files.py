@@ -2,6 +2,7 @@
 from fastapi import HTTPException
 from sqlalchemy import text
 from database.postgres import principal_session
+from core.telemetry import current_trace
 
 
 class PostgresFiles:
@@ -26,7 +27,9 @@ class PostgresFiles:
               VALUES (:file_id,:classroom_id,:original_name,:storage_path,:file_type,:sha256_hash,:uploaded_by,:mime_type,:file_size_bytes,:doc_type)
               ON CONFLICT(classroom_id,sha256_hash) DO NOTHING RETURNING file_id"""), document)).scalar_one_or_none()
             if inserted:
-                await session.execute(text("INSERT INTO ingestion_jobs(file_id,actor_id) VALUES (:id,:actor)"), {"id": inserted, "actor": principal["user_id"]})
+                trace=current_trace.get()
+                await session.execute(text("INSERT INTO ingestion_jobs(file_id,actor_id,trace_id,parent_run_id) VALUES (:id,:actor,:trace,:parent)"),
+                    {'id':inserted,'actor':principal['user_id'],'trace':trace.trace_id if trace else None,'parent':trace.run_id if trace else None})
                 return inserted, True
             existing = (await session.execute(text("SELECT file_id,status FROM files WHERE classroom_id=:classroom_id AND sha256_hash=:sha256_hash"), document)).mappings().one()
             if existing["status"] == "deleted":

@@ -8,6 +8,7 @@ from uuid import uuid4
 from sqlalchemy import text
 from database.postgres import principal_session
 from core.gemini_budget import budget_scope, BudgetExhausted, ProviderUnavailable
+from core.telemetry import operation_trace,current_trace,stage
 
 
 def split_pages(pages, words=300, overlap=40):
@@ -54,6 +55,13 @@ class IngestionWorker:
         if not job:
             return False
         job = dict(job)
+        async with principal_session(self.factory,job['actor_id']) as session:
+            classroom=(await session.execute(text('SELECT classroom_id FROM files WHERE file_id=:id'),{'id':job['file_id']})).scalar_one_or_none()
+        async with operation_trace(self.factory,{'user_id':job['actor_id']},classroom,'ingestion.process',kind='ingestion',
+                trace_id=job.get('trace_id'),parent_run_id=job.get('parent_run_id'),resource_type='file',resource_id=job['file_id']):
+            return await self._process(job)
+
+    async def _process(self,job):
         actor = job["actor_id"]
         try:
             async with principal_session(self.factory, actor) as session:
@@ -74,7 +82,7 @@ class IngestionWorker:
                 path = Path(file["storage_path"]).resolve()
                 if not path.is_relative_to(self.storage_root):
                     raise ValueError("Invalid storage path")
-                with budget_scope(self.budget, 'extract'):
+                with budget_scope(self.budget, 'extract'),stage('ingestion.extract'):
                     pages, method = await self.extractor(path, file["file_type"])
                 chunks = list(split_pages(pages))
                 if not chunks:
@@ -90,7 +98,8 @@ class IngestionWorker:
             async with principal_session(self.factory, actor) as session:
                 pending = (await session.execute(text("SELECT chunk_id,text FROM chunks WHERE file_id=:file_id AND revision=1 AND embedding IS NULL ORDER BY chunk_index"), job)).mappings().all()
             for chunk in pending:
-                vector = await self.embeddings.document(chunk["text"], file["original_name"])
+                with stage('ingestion.embedding'):
+                    vector = await self.embeddings.document(chunk["text"], file["original_name"])
                 async with principal_session(self.factory, actor) as session:
                     await self._lease(session, job)
                     await session.execute(text("UPDATE chunks SET embedding=CAST(:vector AS vector) WHERE chunk_id=:id"),
@@ -104,6 +113,7 @@ class IngestionWorker:
                 await session.execute(text("UPDATE files SET status='ready',active_revision=1,processing_error=NULL WHERE file_id=:file_id AND status<>'deleted'"), job)
                 await session.execute(text("UPDATE ingestion_jobs SET state='completed',lease_until=NULL,last_error=NULL WHERE file_id=:file_id"), job)
         except (BudgetExhausted, ProviderUnavailable) as exc:
+            if current_trace.get():current_trace.get().outcome='error'
             async with self.factory() as session, session.begin():
                 if isinstance(exc, BudgetExhausted) or exc.status == 429:
                     await session.execute(text('SELECT public.defer_ingestion_job(:file_id,:lease_token,:delay)'),
@@ -111,6 +121,7 @@ class IngestionWorker:
                 else:
                     await session.execute(text('SELECT public.fail_ingestion_job(:file_id,:lease_token)'), job)
         except Exception:
+            if current_trace.get():current_trace.get().outcome='error'
             # Retain successful chunks for retry. Never persist raw provider errors,
             # which may contain document content, paths, or credential details.
             async with self.factory() as session, session.begin():

@@ -7,7 +7,7 @@ import json as _json
 import logging
 import hashlib
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Optional, Literal
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -172,6 +172,8 @@ class CreateSessionBody(BaseModel):
 class ChatMessageBody(BaseModel):
     query: str = Field(..., min_length=1, max_length=2000)  # Prevent 10MB query blobs
     scope_classroom_id: Optional[str] = None
+    origin: Literal['live', 'synthetic', 'benchmark'] = 'live'
+    bypass_cache: bool = False
 
 
 class RenameSessionBody(BaseModel):

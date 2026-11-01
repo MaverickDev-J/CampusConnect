@@ -3,6 +3,7 @@ import asyncio
 from pathlib import Path
 from uuid import uuid4
 from sqlalchemy import text
+from core.telemetry import operation_trace
 
 
 class StorageCleanup:
@@ -16,6 +17,13 @@ class StorageCleanup:
             job = (await session.execute(text('SELECT * FROM public.claim_storage_cleanup(:token)'), {'token':token})).mappings().first()
         if not job:
             return False
+        async with operation_trace(self.factory,{'user_id':job['actor_id']},job.get('classroom_id'),
+                'storage.cleanup',kind='cleanup',trace_id=job.get('trace_id'),parent_run_id=job.get('parent_run_id'),
+                resource_type='file',resource_id=job['file_id']) as trace:
+            if not await self._cleanup(job,token):trace.outcome='error'
+        return True
+
+    async def _cleanup(self,job,token):
         success = False
         try:
             path = Path(job['storage_path'])
@@ -37,4 +45,4 @@ class StorageCleanup:
         async with self.factory() as session, session.begin():
             await session.execute(text('SELECT public.finish_storage_cleanup(:id,:token,:success)'),
               {'id':job['file_id'], 'token':token, 'success':success})
-        return True
+        return success
