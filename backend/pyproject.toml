@@ -6,7 +6,6 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "aiofiles>=25.1.0",
-    "chromadb>=0.5.3",
     "opentelemetry-api>=1.24.0",
     "opentelemetry-sdk>=1.24.0",
     "opentelemetry-semantic-conventions==0.45b0",
@@ -27,7 +26,6 @@ dependencies = [
     "uvicorn[standard]>=0.41.0",
     "celery>=5.4.0",
     "redis>=5.2.1",
-    "docling>=2.20.0",
     "ddgs>=6.4.0",
     "slowapi>=0.1.9",
     "email-validator>=2.1.0",
@@ -41,3 +39,7 @@ dependencies = [
     "fastmcp>=3,<4",
     "langgraph-checkpoint-postgres>=3,<4",
 ]
+
+[project.optional-dependencies]
+legacy = ["chromadb>=0.5.3"]
+local-ocr = ["docling>=2.20.0"]

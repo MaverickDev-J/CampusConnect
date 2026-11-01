@@ -333,3 +333,53 @@ deletion refuses to silently erase owned classrooms, files or posts.
 
 The new Neon deployment starts with fresh user-created data. Importing the old
 MongoDB/Chroma dataset is outside the selected rollout.
+
+The separate Modal deployment is `modal_staging.py` (run commands from backend).
+Its frozen uv image excludes the optional `legacy` Chroma and `local-ocr` Docling
+extras. Existing legacy entrypoints need `uv sync --extra legacy`; local OCR is
+optional via `--extra local-ocr`. Docker users can build `Dockerfile.postgres`.
+Both hosted paths require managed PostgreSQL, a reachable Redis connection and
+explicit `CORS_ORIGINS`; uploads are the only data on the Modal Volume.
+
+Configure API/worker credentials without owner URLs or console output:
+
+```powershell
+python -m scripts.configure_modal --frontend-origin https://YOUR-FRONTEND.modal.run --apply
+$env:PYTHONUTF8='1'
+modal deploy modal_staging.py
+modal run modal_staging.py::diagnose
+```
+
+The existing `campusconnect-secrets` must supply hosted REDIS_URL when local .env
+uses localhost. The staging secrets override database, JWT and Gemini settings.
+API and worker roles are separate; migration-owner credentials stay local.
+Use the returned API origin as CAMPUS_STAGING_API_URL when deploying the frontend
+`modal_staging.py` from frontend. Its build enables review/quality UI and disables
+the unseeded public demo.
+
+Upload requests await Volume commit before creating database jobs. File requests
+hold a per-container lock through streaming so reload never races an open file.
+Workers are bounded calls with PostgreSQL leases, not perpetual polling loops.
+File polling resumes deferred ingestion at most once a minute via a Redis wake
+ticket; actions wake delivery. An hourly rescue covers missed enqueues/expired
+leases. With the browser closed, recovery can take up to an hour; this is an
+explicit low-usage tradeoff. Cron invocations can wake Neon, so idle cost is
+bounded rather than zero. At the configured container limits, API pools hold at
+most six connections and ingestion/delivery add three; verification calls are
+temporary. No automatic warm container or GPU is configured.
+API and workers use broad Asia-Pacific compute to reduce round trips to Neon in
+Singapore. Modal currently applies a 1.15x compute multiplier for broad region
+selection. HTTP ingress retains the deployment's initial us-east routing region;
+changing that requires a new function/URL rather than a silent redeploy.
+
+Verified staging endpoints:
+
+- Frontend: https://yjoy1572--campusconnect-postgres-frontend-web.us-east.modal.run
+- API: https://yjoy1572--campusconnect-postgres-fastapi-app.us-east.modal.run
+
+Hosted registration/classrooms, isolation, protected file transfer, spawned
+Embedding 2 ingestion, retrieval, stateless MCP, outbox/WebSocket delivery and the
+authenticated quality/review UI have been checked. The original hosted apps stay
+separate. Successful live generation is still a release gate: Google returned
+HTTP 503 in the current checks. Application cooldown/fallback behavior is verified;
+that does not establish answer/draft quality or a measured reranking improvement.

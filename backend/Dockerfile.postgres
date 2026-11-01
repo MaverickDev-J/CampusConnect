@@ -1,0 +1,20 @@
+# Same lockfile and API-only dependency set used by modal_staging.py.
+FROM python:3.11-slim
+COPY --from=ghcr.io/astral-sh/uv:0.11.16 /uv /bin/uv
+WORKDIR /app
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen --no-dev --no-install-project
+ENV PATH="/app/.venv/bin:$PATH" \
+    STORAGE_DIR="/data/storage" \
+    DEMO_ENABLED="false" \
+    PYTHONUNBUFFERED="1"
+COPY api ./api
+COPY core ./core
+COPY database ./database
+COPY models ./models
+COPY repositories ./repositories
+COPY mcp_server ./mcp_server
+COPY postgres_main.py ./
+RUN mkdir -p /data/storage
+EXPOSE 8000
+CMD ["uvicorn", "postgres_main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers"]

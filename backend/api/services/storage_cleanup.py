@@ -6,8 +6,9 @@ from sqlalchemy import text
 
 
 class StorageCleanup:
-    def __init__(self, factory, storage_root):
+    def __init__(self, factory, storage_root, *, persist=None):
         self.factory, self.root = factory, Path(storage_root).resolve()
+        self.persist = persist
 
     async def run_once(self):
         token = uuid4().hex
@@ -28,6 +29,8 @@ class StorageCleanup:
             # A missing file is success after a crash between unlink and DB ack.
             # This is a single-file operation, never recursive directory removal.
             await asyncio.to_thread(resolved.unlink, missing_ok=True)
+            if self.persist:
+                await self.persist()
             success = True
         except Exception:
             pass

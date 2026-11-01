@@ -5,9 +5,14 @@ In the old CampusMind, we used PersistentClient (embedded mode) which caused
 file-locking conflicts between FastAPI and Celery. Server mode fixes this.
 """
 
+from __future__ import annotations
+
 import os
-import chromadb
-from chromadb.api.models.Collection import Collection
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import chromadb
+    from chromadb.api.models.Collection import Collection
 
 CHROMA_HOST = os.getenv("CHROMA_HOST", "localhost")
 CHROMA_PORT = int(os.getenv("CHROMA_PORT", "8100"))
@@ -20,6 +25,7 @@ campus_collection: Collection = None  # type: ignore[assignment]
 def connect_chroma() -> None:
     """Connect to ChromaDB server or local/volume persistent storage."""
     global chroma_client, campus_collection
+    import chromadb
     persist_dir = os.getenv("CHROMA_PERSIST_DIR")
     if persist_dir:
         os.makedirs(persist_dir, exist_ok=True)

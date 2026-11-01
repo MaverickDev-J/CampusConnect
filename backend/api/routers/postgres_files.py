@@ -53,6 +53,9 @@ async def upload(request: Request, file: UploadFile = File(...), classroom_id: s
                 await handle.write(block)
         if not size:
             raise HTTPException(400, "File is empty")
+        # Make bytes durable before a committed queue record can reach a worker.
+        if persist := getattr(request.app.state, 'persist_upload', None):
+            await persist()
         document = {"file_id": file_id, "classroom_id": classroom_id,
                     "original_name": Path(file.filename or "upload").name, "storage_path": str(path),
                     "file_type": file_type, "sha256_hash": digest.hexdigest(), "uploaded_by": principal["user_id"],

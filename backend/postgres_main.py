@@ -42,6 +42,10 @@ from api.routers import postgres_admin,postgres_demo
 
 
 def create_app(database_url=None, *, storage_root=None, redis_url=None):
+    origins = [value.strip().rstrip('/') for value in os.getenv('CORS_ORIGINS',
+        ','.join(f'http://{host}:{port}' for host in ('localhost','127.0.0.1') for port in (3000,3001))).split(',') if value.strip()]
+    if not origins or '*' in origins or any(not value.startswith(('http://','https://')) for value in origins):
+        raise ValueError('CORS_ORIGINS must contain explicit HTTP origins')
     @asynccontextmanager
     async def lifespan(app):
         url = database_url or os.environ.get("DATABASE_URL")
@@ -79,7 +83,7 @@ def create_app(database_url=None, *, storage_root=None, redis_url=None):
             app.state.workflows = FacultyWorkflow(factory, McpDocumentsClient(app), app.state.actions,
                 GeminiDraftGenerator(BudgetedGemini(client, budget, 'draft') if client else None))
             app.state.ws_redis = Redis.from_url(redis_url or settings.REDIS_URL, decode_responses=True, socket_connect_timeout=5, socket_timeout=5)
-            app.state.ws_origins = [f'http://{host}:{port}' for host in ('localhost','127.0.0.1') for port in (3000,3001)]
+            app.state.ws_origins = origins
             async with mcp_app.lifespan(app):
                 yield
         finally:
@@ -94,7 +98,7 @@ def create_app(database_url=None, *, storage_root=None, redis_url=None):
     mcp_app = mcp.http_app(path='/', stateless_http=True, json_response=True)
     app.mount('/mcp', mcp_app)
     app.add_middleware(CORSMiddleware,
-        allow_origins=[f"http://{host}:{port}" for host in ("localhost", "127.0.0.1") for port in (3000,3001)],
+        allow_origins=origins,
         allow_credentials=True, allow_methods=["GET","POST","PUT","PATCH","DELETE"],
         allow_headers=["Authorization","Content-Type","Idempotency-Key"])
 
@@ -124,7 +128,7 @@ def create_app(database_url=None, *, storage_root=None, redis_url=None):
     async def health():
         async with app.state.accounts.factory() as session:
             await session.execute(text("SELECT 1"))
-        return {"status": "ok", "checks": {"postgresql": "ok"}, "migration_stage": "faculty_workflows"}
+        return {"status": "ok", "checks": {"postgresql": "ok"}, "migration_stage": "010_admin_demo"}
 
     return app
 
