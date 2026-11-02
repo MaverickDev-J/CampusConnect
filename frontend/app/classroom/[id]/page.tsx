@@ -216,8 +216,8 @@ export default function ClassroomPage({ params }: { params: Promise<{ id: string
             <main className="flex-1 transition-all duration-300 relative min-h-screen flex flex-col overflow-hidden">
                 {/* Background Brand Glows */}
                 <div className="fixed inset-0 pointer-events-none">
-                    <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-amber-400/5 blur-[120px] rounded-full" />
-                    <div className="absolute bottom-[-10%] left-[-10%] w-[40%] h-[40%] bg-amber-400/5 blur-[120px] rounded-full" />
+                    <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-400/5 blur-[120px] rounded-full" />
+                    <div className="absolute bottom-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-400/5 blur-[120px] rounded-full" />
                 </div>
                 <Header />
 
@@ -256,8 +256,8 @@ export default function ClassroomPage({ params }: { params: Promise<{ id: string
                 <div className="max-w-6xl mx-auto w-full px-4 md:px-10 py-6 md:py-12 flex-1 relative z-10">
                     {/* Back Button */}
                     <div className="mb-6 md:mb-8">
-                        <Link href="/classrooms" className="inline-flex items-center gap-2 text-slate-400 hover:text-amber-600 transition-all group">
-                            <div className="w-10 h-10 rounded-xl bg-white border border-slate-100 flex items-center justify-center group-hover:border-amber-600/20 shadow-soft transition-all group-hover:shadow-md">
+                        <Link href="/classrooms" className="inline-flex items-center gap-2 text-slate-400 hover:text-blue-600 transition-all group">
+                            <div className="w-10 h-10 rounded-xl bg-white border border-slate-100 flex items-center justify-center group-hover:border-blue-600/20 shadow-soft transition-all group-hover:shadow-md">
                                 <ArrowLeft size={18} />
                             </div>
                             <span className="text-xs font-black uppercase tracking-widest">All Classrooms</span>
@@ -270,7 +270,7 @@ export default function ClassroomPage({ params }: { params: Promise<{ id: string
                         animate={{ opacity: 1, y: 0 }}
                         className="relative rounded-3xl md:rounded-[3rem] overflow-hidden bg-slate-950 shadow-premium mb-6 md:mb-12 h-56 md:h-80 group"
                     >
-                        <div className="absolute inset-0 bg-gradient-to-br from-amber-400 via-amber-600 to-amber-900 opacity-60 group-hover:opacity-70 transition-opacity duration-700" />
+                        <div className="absolute inset-0 bg-gradient-to-br from-blue-400 via-blue-600 to-blue-900 opacity-60 group-hover:opacity-70 transition-opacity duration-700" />
                         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10 mix-blend-overlay" />
                         
                         <div className="p-6 md:p-16 relative z-10 flex flex-col justify-end h-full">
@@ -316,8 +316,8 @@ export default function ClassroomPage({ params }: { params: Promise<{ id: string
                             <div className="p-8 rounded-[2.5rem] glass border border-white/40 shadow-premium">
                                 <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-6">Assignments</h3>
                                 <div className="space-y-4">
-                                    <div className="p-4 rounded-2xl bg-amber-50 border border-amber-100 flex flex-col gap-1">
-                                        <div className="text-[10px] font-black text-amber-600 uppercase tracking-widest">{upcomingEvent ? upcomingEvent.type : 'Upcoming'}</div>
+                                    <div className="p-4 rounded-2xl bg-blue-50 border border-blue-100 flex flex-col gap-1">
+                                        <div className="text-[10px] font-black text-blue-600 uppercase tracking-widest">{upcomingEvent ? upcomingEvent.type : 'Upcoming'}</div>
                                         <div className="text-sm font-bold text-slate-700">
                                             {upcomingEvent ? (
                                                 <div className="flex flex-col">
@@ -331,7 +331,7 @@ export default function ClassroomPage({ params }: { params: Promise<{ id: string
                                             )}
                                         </div>
                                     </div>
-                                    <Link href="/calendar" className="flex items-center justify-center w-full py-3 rounded-xl bg-white border border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] hover:text-amber-600 hover:border-amber-600/20 transition-all shadow-soft">
+                                    <Link href="/calendar" className="flex items-center justify-center w-full py-3 rounded-xl bg-white border border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] hover:text-blue-600 hover:border-blue-600/20 transition-all shadow-soft">
                                         View Calendar
                                     </Link>
                                 </div>
@@ -375,19 +375,19 @@ export default function ClassroomPage({ params }: { params: Promise<{ id: string
                                                     placeholder="Share an announcement with the class..."
                                                     value={annContent}
                                                     onChange={e => setAnnContent(e.target.value)}
-                                                    className="w-full p-6 rounded-[2rem] bg-slate-50 border border-transparent text-slate-900 focus:outline-none focus:bg-white focus:ring-4 focus:ring-amber-500/5 focus:border-amber-500/20 transition-all font-semibold min-h-[160px] text-lg"
+                                                    className="w-full p-6 rounded-[2rem] bg-slate-50 border border-transparent text-slate-900 focus:outline-none focus:bg-white focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500/20 transition-all font-semibold min-h-[160px] text-lg"
                                                 />
                                             </div>
                                             <div className="flex items-center justify-between gap-4">
                                                 <div className="flex gap-3">
-                                                    <label className="w-14 h-14 rounded-2xl bg-slate-100 text-slate-500 hover:text-amber-600 hover:bg-white hover:shadow-soft cursor-pointer transition-all flex items-center justify-center border border-transparent hover:border-amber-600/10 group">
+                                                    <label className="w-14 h-14 rounded-2xl bg-slate-100 text-slate-500 hover:text-blue-600 hover:bg-white hover:shadow-soft cursor-pointer transition-all flex items-center justify-center border border-transparent hover:border-blue-600/10 group">
                                                         <Plus size={24} className="group-hover:rotate-90 transition-transform" />
                                                         <input type="file" className="hidden" onChange={handleFileUpload} />
                                                     </label>
                                                     {stagedFileId && (
-                                                        <div className="px-5 py-2.5 rounded-2xl bg-amber-50 border border-amber-200 flex items-center gap-3">
-                                                            <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-                                                            <span className="text-[10px] font-black text-amber-600 uppercase tracking-widest whitespace-nowrap">File Attached</span>
+                                                        <div className="px-5 py-2.5 rounded-2xl bg-blue-50 border border-blue-200 flex items-center gap-3">
+                                                            <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                                                            <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest whitespace-nowrap">File Attached</span>
                                                             <button 
                                                                 onClick={() => setStagedFileId(null)}
                                                                 className="ml-2 text-primary hover:text-rose-500 transition-colors"
@@ -415,7 +415,7 @@ export default function ClassroomPage({ params }: { params: Promise<{ id: string
                                             onClick={() => setShowComposer(true)}
                                             className="flex items-center gap-6 cursor-pointer group"
                                         >
-                                            <div className="w-14 h-14 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-amber-600 group-hover:text-slate-900 transition-all duration-500 group-hover:shadow-lg group-hover:shadow-amber-500/20 group-hover:rotate-6">
+                                            <div className="w-14 h-14 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-blue-600 group-hover:text-slate-900 transition-all duration-500 group-hover:shadow-lg group-hover:shadow-blue-500/20 group-hover:rotate-6">
                                                 <Plus size={28} />
                                             </div>
                                             <span className="text-xl font-black text-slate-400 group-hover:text-slate-900 transition-all duration-300 tracking-tight">Make an announcement...</span>
@@ -426,7 +426,7 @@ export default function ClassroomPage({ params }: { params: Promise<{ id: string
 
                             {!isTeacher && (
                                 <div className="p-8 rounded-[2.5rem] glass border border-white/40 shadow-premium flex items-center gap-6">
-                                    <div className="w-14 h-14 rounded-2xl bg-amber-50 flex items-center justify-center text-amber-600 shadow-inner">
+                                    <div className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-600 shadow-inner">
                                         <RotateCcw size={28} className="animate-pulse" />
                                     </div>
                                     <div>
@@ -465,7 +465,7 @@ export default function ClassroomPage({ params }: { params: Promise<{ id: string
                                         >
                                             <div className="flex items-center justify-between mb-8">
                                                 <div className="flex items-center gap-4">
-                                                    <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 shadow-inner group-hover:bg-amber-50 group-hover:text-amber-600 transition-colors">
+                                                    <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 shadow-inner group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
                                                         <User size={24} />
                                                     </div>
                                                     <div>
@@ -497,7 +497,7 @@ export default function ClassroomPage({ params }: { params: Promise<{ id: string
                                                 <div className="p-4 md:p-6 rounded-2xl md:rounded-[2rem] bg-slate-50 border border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4 md:gap-6 group/file hover:bg-white transition-all duration-300">
                                                     <div className="flex items-center gap-5">
                                                         <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg transition-transform group-hover/file:rotate-6 ${
-                                                            ann.file.file_type === "pdf" ? "bg-rose-50 text-rose-500 shadow-rose-100" : "bg-amber-50 text-amber-600 shadow-amber-100"
+                                                            ann.file.file_type === "pdf" ? "bg-rose-50 text-rose-500 shadow-rose-100" : "bg-blue-50 text-blue-600 shadow-blue-100"
                                                         }`}>
                                                             <FileText size={28} />
                                                         </div>
@@ -516,7 +516,7 @@ export default function ClassroomPage({ params }: { params: Promise<{ id: string
                                                                         </div>
                                                                     )}
                                                                     {(ann.file.processing?.status === "pending" || ann.file.processing?.status === "processing") && (
-                                                                        <div className="px-3 py-1 rounded-full bg-amber-50 text-amber-600 border border-amber-100 flex items-center gap-2">
+                                                                        <div className="px-3 py-1 rounded-full bg-blue-50 text-blue-600 border border-blue-100 flex items-center gap-2">
                                                                             <Loader2 size={12} className="animate-spin" />
                                                                             <span className="text-[9px] font-black uppercase tracking-widest animate-pulse">
                                                                                 {processingSteps[ann.file.file_id] || "AI is Reading File..."}
@@ -545,14 +545,14 @@ export default function ClassroomPage({ params }: { params: Promise<{ id: string
                                                         <a 
                                                             href={`${API_BASE_URL}/api/files/${ann.file.file_id}/download?token=${user?.token}`}
                                                             target="_blank"
-                                                            className="w-12 h-12 flex items-center justify-center rounded-2xl bg-white text-slate-400 hover:text-amber-600 hover:shadow-premium transition-all border border-slate-100"
+                                                            className="w-12 h-12 flex items-center justify-center rounded-2xl bg-white text-slate-400 hover:text-blue-600 hover:shadow-premium transition-all border border-slate-100"
                                                             title="Download Original"
                                                         >
                                                             <Download size={20} />
                                                         </a>
                                                         <Link 
                                                             href={`/classroom/${id}/files/${ann.file.file_id}`}
-                                                            className="w-12 h-12 flex items-center justify-center rounded-2xl bg-white text-slate-400 hover:text-amber-600 hover:shadow-premium transition-all border border-slate-100" 
+                                                            className="w-12 h-12 flex items-center justify-center rounded-2xl bg-white text-slate-400 hover:text-blue-600 hover:shadow-premium transition-all border border-slate-100"
                                                             title="Analyze View"
                                                         >
                                                             <Eye size={20} />

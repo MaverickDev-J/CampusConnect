@@ -57,26 +57,26 @@ export function Sidebar() {
         <>
             {/* Desktop Sidebar (Sticky, only on md and larger) */}
             <aside
-                className={`sticky left-0 top-0 h-screen bg-white border-r border-slate-200 z-40 transition-all duration-300 hidden md:flex flex-col shadow-soft shrink-0 ${
-                    isCollapsed ? "w-20" : "w-64"
+                className={`sticky left-0 top-0 h-screen bg-white border-r border-slate-200 z-40 transition-all duration-150 hidden md:flex flex-col shrink-0 ${
+                    isCollapsed ? "w-16" : "w-56"
                 }`}
             >
                 {/* Logo */}
-                <div className="p-8 flex items-center justify-between">
+                <div className={`${isCollapsed ? "px-3" : "px-6"} py-6 flex items-center justify-between`}>
                     {!isCollapsed && (
-                        <div className="flex items-center w-full mb-10 mt-2">
-                            <img src="/brand/logo_full.png" alt="Classroom Connect" className="w-[180px] h-auto object-contain mix-blend-multiply" />
+                        <div className="flex items-center w-full mb-3">
+                            <img src="/brand/logo_full.png" alt="Classroom Connect" className="w-[160px] h-auto object-contain mix-blend-multiply" />
                         </div>
                     )}
                     {isCollapsed && (
-                        <Link href="/" className="w-10 h-10 bg-accent/20 rounded-2xl flex items-center justify-center mx-auto transition-all duration-300 hover:bg-accent/30 shadow-sm shadow-accent/10">
+                        <Link href="/" className="w-10 h-10 bg-accent/20 rounded-2xl flex items-center justify-center mx-auto transition-all duration-150 hover:bg-accent/30 shadow-sm shadow-accent/10">
                             <BookOpen size={22} className="text-secondary" />
                         </Link>
                     )}
                 </div>
 
                 {/* Nav Items */}
-                <nav className="flex-1 px-4 space-y-2 mt-2">
+                <nav className={`flex-1 ${isCollapsed ? "px-2" : "px-4"} space-y-2 mt-2`}>
                     {navItems.map((item) => {
                         const active = isActive(item.href);
                         return (
@@ -84,15 +84,15 @@ export function Sidebar() {
                                 key={item.name}
                                 href={item.href}
                                 title={isCollapsed ? item.name : undefined}
-                                className={`flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all duration-300 group ${
+                                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-150 group ${
                                     active
-                                        ? "bg-indigo-600 text-white shadow-xl shadow-indigo-600/20 scale-[1.02]"
-                                        : "text-slate-500 hover:bg-slate-50 hover:text-amber-600"
+                                        ? "bg-blue-50 text-blue-700"
+                                        : "text-slate-500 hover:bg-slate-50 hover:text-blue-600"
                                 }`}
                             >
                                  <item.icon
                                     size={22}
-                                    className={active ? "text-white" : "group-hover:text-amber-600 transition-colors"}
+                                    className={active ? "text-blue-700" : "group-hover:text-blue-600 transition-colors"}
                                 />
                                 {!isCollapsed && (
                                     <span className="font-bold text-sm tracking-tight">{item.name}</span>
@@ -109,8 +109,9 @@ export function Sidebar() {
                 {/* Collapse toggle */}
                 <button
                     suppressHydrationWarning
+                    aria-label={isCollapsed ? "Expand navigation" : "Collapse navigation"}
                     onClick={() => setIsCollapsed(!isCollapsed)}
-                    className="absolute -right-3 top-20 w-6 h-6 bg-white border border-slate-200 rounded-full flex items-center justify-center shadow-soft text-slate-500 hover:text-amber-600 z-50 transition-colors"
+                    className="absolute -right-3 top-20 w-6 h-6 bg-white border border-slate-200 rounded-full flex items-center justify-center shadow-soft text-slate-500 hover:text-blue-600 z-50 transition-colors"
                 >
                     {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
                 </button>
@@ -134,12 +135,12 @@ export function Sidebar() {
                             initial={{ x: "-100%" }}
                             animate={{ x: 0 }}
                             exit={{ x: "-100%" }}
-                            transition={{ type: "spring", damping: 25, stiffness: 200 }}
+                            transition={{ duration: 0.16, ease: "easeOut" }}
                             className="fixed left-0 top-0 h-screen w-72 bg-white z-50 shadow-premium flex flex-col md:hidden border-r border-slate-200"
                         >
                             {/* Logo */}
-                            <div className="p-8 flex items-center justify-between">
-                                <div className="flex items-center w-full mb-8 mt-2">
+                            <div className="px-6 py-6 flex items-center justify-between">
+                                <div className="flex items-center w-full mb-3">
                                     <img src="/brand/logo_full.png" alt="Classroom Connect" className="w-[160px] h-auto object-contain mix-blend-multiply" />
                                 </div>
                             </div>
@@ -153,15 +154,15 @@ export function Sidebar() {
                                             key={item.name}
                                             href={item.href}
                                             onClick={() => setIsOpenMobile(false)}
-                                            className={`flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all duration-300 group ${
+                                            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-150 group ${
                                                 active
-                                                    ? "bg-indigo-600 text-white shadow-xl shadow-indigo-600/20 scale-[1.02]"
-                                                    : "text-slate-500 hover:bg-slate-50 hover:text-amber-600"
+                                                    ? "bg-blue-50 text-blue-700"
+                                                    : "text-slate-500 hover:bg-slate-50 hover:text-blue-600"
                                             }`}
                                         >
                                              <item.icon
                                                 size={22}
-                                                className={active ? "text-white" : "group-hover:text-amber-600 transition-colors"}
+                                                className={active ? "text-blue-700" : "group-hover:text-blue-600 transition-colors"}
                                             />
                                             <span className="font-bold text-sm tracking-tight">{item.name}</span>
                                         </Link>

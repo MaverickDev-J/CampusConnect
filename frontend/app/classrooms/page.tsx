@@ -16,7 +16,6 @@ import {
     Search,
     Loader2
 } from "lucide-react";
-import confetti from "canvas-confetti";
 
 function ClassroomsPageInner() {
     const { user } = useAuth();
@@ -45,14 +44,6 @@ function ClassroomsPageInner() {
         (c.subject || "").toLowerCase().includes(search.toLowerCase())
     );
 
-    const fireConfetti = () => {
-        confetti({
-            particleCount: 150,
-            spread: 70,
-            origin: { y: 0.6 },
-            colors: ["#0066FF", "#FFB800", "#10b981"]
-        });
-    };
 
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -62,7 +53,6 @@ function ClassroomsPageInner() {
             await createClassroom(createData);
             setShowCreate(false);
             setCreateData({ name: "", subject: "" });
-            fireConfetti();
         } catch (err) {
             setCreateError(err instanceof Error ? err.message : "Failed to create");
         } finally {
@@ -78,7 +68,6 @@ function ClassroomsPageInner() {
             await joinClassroom(joinCode.trim().toUpperCase());
             setShowJoin(false);
             setJoinCode("");
-            fireConfetti();
         } catch (err) {
             setJoinError(err instanceof Error ? err.message : "Invalid code");
         } finally {
@@ -97,11 +86,11 @@ function ClassroomsPageInner() {
                     <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-8 md:mb-12">
                         <div>
                             <motion.h1 
-                                initial={{ opacity: 0, x: -20 }}
+                                initial={false}
                                 animate={{ opacity: 1, x: 0 }}
-                                className="text-3xl md:text-5xl font-black text-slate-900 tracking-tighter mb-2"
+                                className="text-3xl md:text-4xl font-semibold text-slate-900 tracking-tighter mb-2"
                             >
-                                Your Learning Hubs
+                                Classrooms
                             </motion.h1>
                             <motion.p 
                                 initial={{ opacity: 0 }}
@@ -129,7 +118,7 @@ function ClassroomsPageInner() {
                                 onClick={() => setShowJoin(true)}
                                 className="btn-neumorphic px-4 md:px-6 py-2.5 md:py-3.5 rounded-xl md:rounded-2xl text-slate-600 font-black text-xs md:text-sm flex items-center gap-2"
                             >
-                                <UserPlus size={16} /> Join Hub
+                                <UserPlus size={16} /> Join classroom
                             </button>
                             
                             {isTeacher && (
@@ -137,7 +126,7 @@ function ClassroomsPageInner() {
                                     onClick={() => setShowCreate(true)}
                                     className="btn-neumorphic-primary px-5 md:px-8 py-2.5 md:py-3.5 rounded-xl md:rounded-2xl font-black text-xs md:text-sm flex items-center gap-2"
                                 >
-                                    <Plus size={18} /> Create New
+                                    <Plus size={18} /> Create classroom
                                 </button>
                             )}
                         </div>
@@ -154,7 +143,7 @@ function ClassroomsPageInner() {
                         <motion.div 
                             initial={{ opacity: 0, scale: 0.95 }}
                             animate={{ opacity: 1, scale: 1 }}
-                            className="flex flex-col items-center justify-center p-24 rounded-[3rem] glass border border-white/40 text-center shadow-premium"
+                            className="flex flex-col items-center justify-center p-12 rounded-2xl glass border border-white/40 text-center shadow-premium"
                         >
                             <div className="w-24 h-24 bg-primary/5 text-primary rounded-[2rem] flex items-center justify-center mb-8 shadow-inner">
                                 <BookOpen size={48} />
@@ -194,13 +183,14 @@ function ClassroomsPageInner() {
                         onClick={() => { setShowCreate(false); setShowJoin(false); }}
                     >
                         <motion.div
-                            initial={{ scale: 0.9, y: 40, rotateX: 15 }}
-                            animate={{ scale: 1, y: 0, rotateX: 0 }}
-                            exit={{ scale: 0.9, y: 40, rotateX: 15 }}
+                            initial={{ opacity: 0, y: 8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.15 }}
+                            role="dialog" aria-modal="true" aria-label={showCreate ? "Create classroom" : "Join classroom"}
+                            exit={{ opacity: 0, y: 8 }}
                             onClick={e => e.stopPropagation()}
-                            className="glass-dark rounded-3xl md:rounded-[3rem] p-6 md:p-10 w-full max-w-xl shadow-premium border-white/10 relative overflow-hidden m-4"
+                            className="glass-dark rounded-2xl p-6 md:p-10 w-full max-w-xl shadow-premium border-white/10 relative overflow-hidden m-4"
                         >
-                            <div className="absolute top-0 right-0 w-32 h-32 bg-primary/20 blur-[60px] rounded-full -translate-y-1/2 translate-x-1/2" />
                             
                             <div className="flex items-center justify-between mb-6 md:mb-10 relative z-10">
                                 <div>

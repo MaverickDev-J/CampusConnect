@@ -5,7 +5,7 @@ import { useClassrooms } from "@/app/hooks/useClassrooms";
 import { Sidebar } from "@/app/components/Sidebar";
 import Header from "@/app/components/Header";
 import DemoBanner from "@/app/components/DemoBanner";
-import LandingPage from "@/app/landing/page";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
@@ -20,6 +20,8 @@ import {
 
 import { ClassroomCard } from "@/app/components/ClassroomCard";
 
+const LandingPage = dynamic(() => import("@/app/landing/page"));
+
 // ── Smart Root Page ─────────────────────────────────────────────────
 // Unauthenticated users → landing page
 // Authenticated users → dashboard
@@ -31,7 +33,7 @@ export default function RootPage() {
     if (loading) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-slate-50">
-                <Loader2 className="animate-spin text-amber-500" size={32} />
+                <Loader2 className="animate-spin text-blue-500" size={32} />
             </div>
         );
     }
@@ -75,68 +77,68 @@ function DashboardPage({ isDemo }: { isDemo: boolean }) {
                         
                         {/* 1. Large Welcome Hero (Bento: 4x2) */}
                         <motion.div
-                            initial={{ opacity: 0, scale: 0.95 }}
+                            initial={false}
                             animate={{ opacity: 1, scale: 1 }}
-                            className="md:col-span-4 lg:col-span-4 row-span-2 relative overflow-hidden rounded-3xl md:rounded-[2.5rem] bg-primary p-6 md:p-12 text-white shadow-2xl shadow-primary/20"
+                            className="md:col-span-4 lg:col-span-4 row-span-2 relative overflow-hidden rounded-3xl md:rounded-[2.5rem] bg-primary p-6 md:p-9 text-white"
                         >
                             <div className="relative z-10 h-full flex flex-col justify-between">
                                 <div>
                                     <motion.p 
-                                        initial={{ opacity: 0, x: -20 }}
+                                        initial={false}
                                         animate={{ opacity: 1, x: 0 }}
                                         transition={{ delay: 0.2 }}
-                                        className="text-white/60 font-black text-xs md:text-sm uppercase tracking-[0.3em] mb-4"
+                                        className="text-white/80 text-sm font-medium mb-3"
                                     >
                                         {greeting()}
                                     </motion.p>
                                     <motion.h1 
-                                        initial={{ opacity: 0, x: -20 }}
+                                        initial={false}
                                         animate={{ opacity: 1, x: 0 }}
                                         transition={{ delay: 0.3 }}
-                                        className="text-4xl md:text-6xl font-black tracking-tighter mb-6 leading-[0.9]"
+                                        className="text-3xl md:text-4xl font-black tracking-tighter mb-6 leading-tight"
                                     >
                                         Welcome back,<br/>
                                         <span className="text-white/80">{user?.name?.split(" ")[0]}</span>
                                     </motion.h1>
                                     <motion.p 
-                                        initial={{ opacity: 0 }}
+                                        initial={false}
                                         animate={{ opacity: 1 }}
                                         transition={{ delay: 0.4 }}
-                                        className="text-white/70 text-sm md:text-lg font-medium max-w-md leading-relaxed"
+                                        className="text-white/90 text-sm md:text-lg font-medium max-w-md leading-relaxed"
                                     >
                                         {isTeacher
-                                            ? "Your academic command center is ready. Manage your classrooms and student progress with ease."
-                                            : `You have ${classrooms.length} active classrooms. Ready to explore your AI-powered Classroom Connect environment?`}
+                                            ? "Manage your classes, materials, and upcoming sessions."
+                                            : `You have ${classrooms.length} active classrooms. Choose a classroom to review materials or continue studying.`}
                                     </motion.p>
                                 </div>
                                 
                                 <motion.div 
-                                    initial={{ opacity: 0, y: 20 }}
+                                    initial={false}
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: 0.5 }}
                                     className="pt-6 md:pt-10"
                                 >
-                                    <Link href="/classrooms" className="inline-flex items-center gap-3 px-6 md:px-8 py-3 md:py-4 bg-white text-primary rounded-xl md:rounded-2xl font-black text-xs md:text-sm shadow-xl hover:scale-105 transition-transform group">
+                                    <Link href="/classrooms" className="inline-flex items-center gap-3 px-6 md:px-8 py-3 md:py-4 bg-white text-primary rounded-xl md:rounded-2xl font-black text-xs md:text-sm shadow-sm hover:bg-slate-50 transition-colors group">
                                         View All Classrooms <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
                                     </Link>
                                 </motion.div>
                             </div>
 
                             {/* Decorative Elements */}
-                            <div className="absolute top-[-100px] right-[-100px] w-80 h-80 bg-white/10 rounded-full blur-[100px]" />
-                            <div className="absolute bottom-[-50px] left-[-50px] w-64 h-64 bg-black/10 rounded-full blur-[60px]" />
+
+
                             <BookOpen className="absolute right-[-20px] bottom-[-20px] w-64 h-64 text-white/5 -rotate-12" />
                         </motion.div>
 
                         {/* 2. Quick Stats (Bento Side Column) */}
                         <div className="md:col-span-2 lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-1 gap-4 md:gap-6">
                             {[
-                                { label: "Total Members", value: classrooms.reduce((acc, curr) => acc + (curr.member_count || 0), 0), icon: Users, color: "bg-amber-100 text-amber-600" },
+                                { label: "Total Members", value: classrooms.reduce((acc, curr) => acc + (curr.member_count || 0), 0), icon: Users, color: "bg-blue-100 text-blue-600" },
                                 { label: "Active Classrooms", value: classrooms.length, icon: Zap, color: "bg-emerald-100 text-emerald-600" },
                             ].map((stat, i) => (
                                 <motion.div 
                                     key={stat.label}
-                                    initial={{ opacity: 0, x: 20 }}
+                                    initial={false}
                                     animate={{ opacity: 1, x: 0 }}
                                     transition={{ delay: 0.2 + (i * 0.1) }}
                                     className="p-6 md:p-8 rounded-2xl md:rounded-[2.5rem] bg-white border border-slate-100 shadow-soft flex items-center gap-4 md:gap-6"
@@ -158,14 +160,14 @@ function DashboardPage({ isDemo }: { isDemo: boolean }) {
                         <div className="md:col-span-6 lg:col-span-6 pt-6 md:pt-10">
                             <div className="flex items-center justify-between mb-6 md:mb-8">
                                 <motion.h2 
-                                    initial={{ opacity: 0, x: -20 }}
+                                    initial={false}
                                     animate={{ opacity: 1, x: 0 }}
-                                    className="text-2xl md:text-4xl font-black text-slate-900 tracking-tighter"
+                                    className="text-2xl md:text-3xl font-semibold text-slate-900 tracking-tighter"
                                 >
                                     My Classrooms
                                 </motion.h2>
                                 <motion.div 
-                                    initial={{ opacity: 0, x: 20 }}
+                                    initial={false}
                                     animate={{ opacity: 1, x: 0 }}
                                 >
                                     <Link href="/classrooms" className="text-primary font-black text-[10px] md:text-xs uppercase tracking-widest hover:bg-primary/5 px-4 md:px-6 py-2 md:py-3 rounded-xl md:rounded-2xl border border-primary/10 transition-all">Explore All</Link>
@@ -192,7 +194,7 @@ function DashboardPage({ isDemo }: { isDemo: boolean }) {
                                     recentClassrooms.map((cls, i) => (
                                         <motion.div
                                             key={cls.classroom_id}
-                                            initial={{ opacity: 0, y: 20 }}
+                                            initial={false}
                                             animate={{ opacity: 1, y: 0 }}
                                             transition={{ delay: 0.7 + (i * 0.1) }}
                                         >

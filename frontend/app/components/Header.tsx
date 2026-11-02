@@ -9,6 +9,7 @@ import { useState, useEffect, useCallback, Suspense } from "react";
 import { Megaphone, Calendar as CalendarIcon, Loader2 as LoaderIcon } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { API_BASE_URL } from "@/app/config";
+import ThemeToggle from "./ThemeToggle";
 
 function HeaderInner() {
     const { user, logout, isDemo } = useAuth();
@@ -78,6 +79,7 @@ function HeaderInner() {
     ];
 
     const activeTab = "Dashboard";
+    const pageTitles: Record<string, string> = { "/": "Overview", "/classrooms": "Classrooms", "/calendar": "Calendar", "/quality": "Quality & Runs", "/profile": "Profile", "/admin": "Administration" };
 
     // Get user initials for avatar
     const initials = user?.name
@@ -94,25 +96,25 @@ function HeaderInner() {
             <div className="flex-shrink-0 flex items-center gap-2 md:gap-4">
                 {/* Mobile Sidebar Hamburger Trigger */}
                 <button
+                    aria-label="Open navigation"
                     onClick={() => window.dispatchEvent(new CustomEvent("toggle-mobile-sidebar"))}
-                    className="flex md:hidden items-center justify-center w-10 h-10 rounded-xl bg-white/50 border border-slate-200 hover:bg-white text-slate-500 hover:text-amber-600 transition-all shadow-soft mr-1"
+                    className="flex md:hidden items-center justify-center w-10 h-10 rounded-xl bg-white/50 border border-slate-200 hover:bg-white text-slate-500 hover:text-blue-600 transition-all shadow-soft mr-1"
                 >
                     <Menu size={20} />
                 </button>
-                <h1 className="text-xl md:text-2xl font-black text-slate-900 tracking-tighter">
-                    {pathname === "/" ? "Dashboard" : "Classroom"}
-                </h1>
+                <p className="text-lg md:text-xl font-semibold text-slate-900 tracking-tight">
+                    {pageTitles[pathname] || "Classroom"}
+                </p>
             </div>
 
             {/* Centered Search */}
             <div className="flex-1 hidden sm:flex justify-center max-w-xl mx-auto px-4 md:px-8">
                 <div className="relative w-full group">
-                    <div className="absolute inset-0 bg-primary/5 rounded-2xl blur-xl group-focus-within:bg-primary/10 transition-all duration-500 opacity-0 group-focus-within:opacity-100" />
                     <form 
                         onSubmit={handleSearch}
-                        className="relative glass rounded-2xl flex items-center px-5 py-3 border-white/40 shadow-soft group-focus-within:shadow-premium group-focus-within:border-amber-600/20 transition-all duration-300"
+                        className="relative glass rounded-2xl flex items-center px-5 py-3 border-white/40 shadow-soft group-focus-within:shadow-premium group-focus-within:border-blue-600/20 transition-all duration-300"
                     >
-                        <Search className="w-5 h-5 text-slate-400 group-focus-within:text-amber-600 transition-colors" />
+                        <Search className="w-5 h-5 text-slate-400 group-focus-within:text-blue-600 transition-colors" />
                             <input
                                 suppressHydrationWarning
                                 type="text"
@@ -132,13 +134,15 @@ function HeaderInner() {
 
             {/* Right side actions */}
             <div className="flex items-center gap-2 md:gap-5">
+                <ThemeToggle />
                 <div className="relative">
                     <button 
+                        aria-label="Notifications"
                         suppressHydrationWarning
                         onClick={() => setShowNotifications(!showNotifications)}
-                        className="relative flex items-center justify-center w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl bg-white/50 border border-slate-200 hover:border-amber-600/40 hover:bg-white transition-all shadow-soft group"
+                        className="relative flex items-center justify-center w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl bg-white/50 border border-slate-200 hover:border-blue-600/40 hover:bg-white transition-all shadow-soft group"
                     >
-                        <Bell className="w-5 h-5 text-slate-400 group-hover:text-amber-600 transition-colors" />
+                        <Bell className="w-5 h-5 text-slate-400 group-hover:text-blue-600 transition-colors" />
                         {unreadCount > 0 && (
                             <span className="absolute top-3.5 right-3.5 w-2.5 h-2.5 bg-accent rounded-full border-2 border-white shadow-lg animate-pulse" />
                         )}
@@ -155,7 +159,7 @@ function HeaderInner() {
                                 <div className="flex items-center justify-between mb-6">
                                     <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">Notifications</h3>
                                     {unreadCount > 0 && (
-                                        <span className="px-2.5 py-1 rounded-full bg-amber-100 text-[10px] text-amber-700 font-black uppercase tracking-wider">{unreadCount} New</span>
+                                        <span className="px-2.5 py-1 rounded-full bg-blue-100 text-[10px] text-blue-700 font-black uppercase tracking-wider">{unreadCount} New</span>
                                     )}
                                 </div>
                                 <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
@@ -174,12 +178,12 @@ function HeaderInner() {
                                                 onClick={() => markAsRead(notif.notification_id, notif.link)}
                                                 >
                                                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm ${
-                                                    notif.type === "announcement" ? "bg-amber-100 text-amber-600" : "bg-emerald-100 text-emerald-600"
+                                                    notif.type === "announcement" ? "bg-blue-100 text-blue-600" : "bg-emerald-100 text-emerald-600"
                                                 }`}>
                                                     {notif.type === "announcement" ? <Megaphone size={18} /> : <CalendarIcon size={18} />}
                                                 </div>
                                                 <div className="flex-1">
-                                                    <p className="text-sm font-bold text-slate-900 group-hover:text-amber-600 transition-colors leading-tight mb-1">
+                                                    <p className="text-sm font-bold text-slate-900 group-hover:text-blue-600 transition-colors leading-tight mb-1">
                                                         {notif.title}
                                                     </p>
                                                     <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed italic">
@@ -189,7 +193,7 @@ function HeaderInner() {
                                                         <span className="text-[9px] text-slate-300 font-black uppercase tracking-wider">
                                                             {new Date(notif.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                         </span>
-                                                        <span className="text-[9px] text-amber-600 opacity-0 group-hover:opacity-100 font-black uppercase tracking-wider transition-opacity">View Details</span>
+                                                        <span className="text-[9px] text-blue-600 opacity-0 group-hover:opacity-100 font-black uppercase tracking-wider transition-opacity">View Details</span>
                                                     </div>
                                                 </div>
                                             </Link>
@@ -205,7 +209,7 @@ function HeaderInner() {
                                             });
                                             fetchNotifications();
                                         }}
-                                        className="w-full mt-6 py-4 text-[10px] font-black text-slate-400 hover:text-amber-600 uppercase tracking-[0.2em] border-t border-slate-100 transition-colors"
+                                        className="w-full mt-6 py-4 text-[10px] font-black text-slate-400 hover:text-blue-600 uppercase tracking-[0.2em] border-t border-slate-100 transition-colors"
                                     >
                                         Clear all alerts
                                     </button>
@@ -218,7 +222,7 @@ function HeaderInner() {
                 <div className="relative flex items-center gap-3 pl-2 border-l border-slate-200">
                     <div className="text-right hidden sm:block">
                         <div className="text-sm font-black text-slate-900 leading-none">{user?.name}</div>
-                        <div className="text-[10px] text-amber-600 font-black uppercase tracking-widest mt-1 opacity-70 border-b border-amber-600/20 pb-0.5">{isDemo ? "Demo Guest" : user?.role}</div>
+                        <div className="text-[10px] text-blue-600 font-black uppercase tracking-widest mt-1 opacity-70 border-b border-blue-600/20 pb-0.5">{isDemo ? "Demo Guest" : user?.role}</div>
                     </div>
                     <div 
                         onClick={() => setShowProfileMenu(!showProfileMenu)}

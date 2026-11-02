@@ -19,33 +19,16 @@ export function ClassroomCard({ classroom }: ClassroomCardProps) {
 
     return (
         <motion.div 
-            whileHover={{ y: -12, scale: 1.02, transition: { duration: 0.4, ease: "easeOut" } }}
+            whileHover={{ y: -2, transition: { duration: 0.15 } }}
             onClick={handleCardClick}
-            className="group block rounded-3xl bg-white border border-slate-200/60 hover:border-primary/30 transition-all duration-500 relative overflow-hidden shadow-soft hover:shadow-[0_30px_60px_-12px_rgba(0,102,255,0.15)] cursor-pointer"
+            className="group block rounded-3xl bg-white border border-slate-200/60 hover:border-primary/30 transition-all duration-150 relative overflow-hidden shadow-soft hover:shadow-md cursor-pointer"
         >
-            {/* Subject-Themed Gradient Background Pattern */}
-            <div className={`absolute inset-0 opacity-[0.03] pointer-events-none transition-opacity group-hover:opacity-[0.08] ${
-                classroom.subject?.toLowerCase().includes("ml") ? "bg-[radial-gradient(circle_at_top_right,#0066FF_0%,transparent_70%)]" :
-                classroom.subject?.toLowerCase().includes("cs") ? "bg-[radial-gradient(circle_at_top_right,#10b981_0%,transparent_70%)]" :
-                "bg-[radial-gradient(circle_at_top_right,#f59e0b_0%,transparent_70%)]"
-            }`} />
-
-            {/* Top Accent Bar with glassmorphism flare */}
-            <div className="h-2 w-full relative overflow-hidden">
-                <div className={`absolute inset-0 bg-gradient-to-r ${
-                    classroom.subject?.toLowerCase().includes("ml") ? "from-primary to-blue-600" :
-                    classroom.subject?.toLowerCase().includes("cs") ? "from-emerald-500 to-emerald-600" :
-                    "from-amber-500 to-amber-600"
-                }`} />
-                <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/40 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 ease-in-out" />
-            </div>
-
-            <div className="p-8 relative z-10">
-                <div className="flex justify-between items-start mb-8">
-                    <div className={`p-4 rounded-2xl shadow-sm transition-transform group-hover:rotate-6 group-hover:scale-110 duration-500 ${
+            <div className="p-6 relative z-10">
+                <div className="flex justify-between items-start mb-5">
+                    <div className={`p-4 rounded-2xl shadow-sm transition-transform  duration-150 ${
                         classroom.subject?.toLowerCase().includes("ml") ? "bg-primary/10 text-primary" :
                         classroom.subject?.toLowerCase().includes("cs") ? "bg-emerald-50 text-emerald-600" :
-                        "bg-amber-50 text-amber-600"
+                        "bg-blue-50 text-blue-600"
                     }`}>
                         <BookOpen size={28} />
                     </div>
@@ -67,7 +50,7 @@ export function ClassroomCard({ classroom }: ClassroomCardProps) {
                     </div>
                 )}
 
-                <div className="mb-8 h-10 flex flex-col justify-center">
+                <div className="mb-5 h-10 flex flex-col justify-center">
                     <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-1">Lead Instructor</span>
                     <p className="text-slate-900 text-sm font-black tracking-tight flex items-center gap-2">
                         <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
@@ -78,8 +61,8 @@ export function ClassroomCard({ classroom }: ClassroomCardProps) {
                 <div className="flex items-center justify-between pt-6 border-t border-slate-100/60">
                     <div className="flex items-center gap-2">
                         <div className="status-dot-animated" />
-                        <span className="text-primary text-xs font-black uppercase tracking-widest opacity-0 group-hover:opacity-100 transform translate-x-[-10px] group-hover:translate-x-0 transition-all duration-500">
-                            Enter Hub
+                        <span className="text-primary text-xs font-black uppercase tracking-widest  transition-all duration-150">
+                            Open classroom
                         </span>
                     </div>
                     <div className="flex items-center gap-2">
