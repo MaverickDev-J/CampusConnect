@@ -200,8 +200,8 @@ Queries about CURRENT/RECENT real-world events, news, or rapidly-changing techni
 The key signal: "latest", "recent", "this week", "2025", "news about", "newest version of".
 Examples: "Latest LLM benchmarks", "Recent AI breakthroughs", "What's new in React 19"
 
-### 4. OUT_OF_SCOPE  ← USE THIS AGGRESSIVELY
-ANY query that is NOT directly related to academics OR the subject of the CURRENT CLASSROOM.
+### 4. OUT_OF_SCOPE
+Clearly nonacademic requests or cheating. Do not use this intent merely because an answer may be unavailable.
 This includes:
 - Topics completely unrelated to the classroom subject (e.g., history/war in a CS class)
 - Medical advice, legal advice, personal advice
@@ -210,6 +210,7 @@ This includes:
 
 ## CRITICAL CLASSROOM SUBJECT RULE
 The user is inside a specific classroom with a defined subject.
+Course logistics, laboratory setups, configuration details and course-specific facts are RAG_SEARCH even if the evidence may be missing. Classification is about topic, not answer availability; the answer stage identifies missing information.
 If the query topic is NOT related to that subject, classify as OUT_OF_SCOPE.
 Example: User is in "Software Engineering 2026" → asking about "Iran-Iraq War" → OUT_OF_SCOPE
 Example: User is in "Machine Learning" → asking about "neural networks" → RAG_SEARCH

@@ -71,6 +71,14 @@ class QualityCacheTests(PostgresApiFixture):
             json={'query':'test','origin':'benchmark'})
         self.assertEqual(rejected.status_code,403)
 
+    async def test_answer_policy_change_invalidates_cached_answer(self):
+        await self.prepared()
+        await self.ask()
+        self.app.state.answer_cache.prompt_hash='updated-answer-policy'
+        _,response=await self.ask()
+        self.assertIn('Verified answer 2',response.text)
+        self.assertEqual(self.route.await_count,2)
+
     async def test_corpus_changes_expiry_and_deleted_sources_invalidate_reuse(self):
         await self.prepared()
         await self.ask()

@@ -18,8 +18,8 @@ class AnswerCache:
     def __init__(self,factory,*,config_version=CONFIG_VERSION):
         self.factory=factory
         self.config_version=config_version
-        from api.agent.nodes import SYNTHESIS_SYSTEM_PROMPT
-        self.prompt_hash=hashlib.sha256(SYNTHESIS_SYSTEM_PROMPT.encode()).hexdigest()
+        from api.agent.grounding import GROUNDED_SYSTEM_PROMPT,ANSWER_POLICY_VERSION
+        self.prompt_hash=hashlib.sha256((ANSWER_POLICY_VERSION+GROUNDED_SYSTEM_PROMPT).encode()).hexdigest()
 
     async def context(self,session,state):
         row=(await session.execute(text('''SELECT c.classroom_id,v.version AS corpus_version,c.name,c.subject,c.description,

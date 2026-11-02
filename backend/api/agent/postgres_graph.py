@@ -4,7 +4,8 @@ import asyncio
 from langgraph.graph import END, StateGraph
 from sqlalchemy import text
 
-from api.agent.nodes import AgentState, router_node, fast_reject_node, web_search_node, _build_synthesis_prompt, SYNTHESIS_SYSTEM_PROMPT
+from api.agent.nodes import AgentState, router_node, fast_reject_node, web_search_node
+from api.agent.grounding import build_grounded_prompt,GROUNDED_SYSTEM_PROMPT
 from api.agent.state import UserProfile, ChatMessage, RetrievedChunk
 from api.agent.state import RouterOutput
 from api.services.retrieval.postgres_search import PostgresSearch
@@ -143,8 +144,8 @@ class GeminiAnswer:
             raise RuntimeError("Generation provider unavailable")
         # One model attempt: never restart a response after emitting partial text.
         stream = await self.client.aio.models.generate_content_stream(
-            model="gemini-3.8-flash", contents=_build_synthesis_prompt(state),
-            config=types.GenerateContentConfig(system_instruction=SYNTHESIS_SYSTEM_PROMPT,
+            model="gemini-3.8-flash", contents=build_grounded_prompt(state),
+            config=types.GenerateContentConfig(system_instruction=GROUNDED_SYSTEM_PROMPT,
               temperature=0.3, max_output_tokens=4096, thinking_config=types.ThinkingConfig(thinking_level="low")))
         emitted = False
         async with aclosing(stream):

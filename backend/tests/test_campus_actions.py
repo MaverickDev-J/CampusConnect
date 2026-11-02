@@ -90,7 +90,8 @@ class CampusActionTests(PostgresApiFixture):
 
     async def test_outbox_retry_and_delivery(self):
         await self.course()
-        await self.client.post('/api/announcements', headers=self.headers, json={'classroom_id':self.cid,'content':'Update'})
+        response=await self.client.post('/api/announcements', headers=self.headers, json={'classroom_id':self.cid,'content':'Update'})
+        self.assertEqual(response.status_code,201,response.text)
         with psycopg.connect(self.owner_url) as connection:
             grants = (Path(__file__).parents[1]/'migrations/worker_grants.sql').read_text()
             for statement in grants.split(';'):
