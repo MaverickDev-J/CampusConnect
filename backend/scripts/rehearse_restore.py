@@ -129,8 +129,11 @@ def rehearse(project,profile,output):
             except Exception:cleanup.append({'branch_id':branch_id,'deleted':False})
         report['cleanup']=cleanup
         report['local_connections_unchanged']=snapshot_files()==originals
+        if report.get('status')=='passed' and (not all(item['deleted'] for item in cleanup) or not report['local_connections_unchanged']):
+            report['status']='cleanup_failed'
         report['finished_at']=datetime.now(timezone.utc).isoformat()
         (output/'restore-report.json').write_text(json.dumps(report,indent=2),encoding='utf-8')
+    if report.get('status')!='passed':raise RuntimeError('Recovery cleanup needs operator attention')
     return report
 
 

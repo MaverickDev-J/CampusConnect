@@ -148,11 +148,17 @@ class FilesChatTests(ApiFixture):
         embeddings = FakeEmbeddings()
         embeddings.fail_at = 2
         worker = await self.worker(embeddings, pages)
-        await worker.run_once()
+        # This test exercises partial failure/resume, independent of the queue's
+        # wall-clock eligibility boundary on a just-created job.
+        with psycopg.connect(self.owner_url) as connection:
+            connection.execute("UPDATE ingestion_jobs SET available_at=now()-interval '1 second' WHERE file_id=%s",(file_id,))
+        claimed=await worker.run_once()
         metadata = (await self.client.get(f"/api/files/{file_id}", headers=self.headers)).json()
+        self.assertTrue(claimed,metadata)
         self.assertEqual(metadata["processing"]["status"], "pending")
         with psycopg.connect(self.owner_url) as connection:
-            self.assertEqual(connection.execute("SELECT count(*) FROM chunks WHERE file_id=%s AND embedding IS NOT NULL", (file_id,)).fetchone()[0], 1)
+            self.assertEqual(connection.execute("SELECT count(*) FROM chunks WHERE file_id=%s AND embedding IS NOT NULL", (file_id,)).fetchone()[0], 1,
+                {'metadata':metadata,'embedding_calls':embeddings.calls})
             connection.execute("UPDATE ingestion_jobs SET available_at=now() WHERE file_id=%s", (file_id,))
         await worker.run_once()
         self.assertEqual(embeddings.calls, 4)  # 1 saved + 1 failure + 2 remaining chunks.

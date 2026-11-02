@@ -122,7 +122,9 @@ class CleanupSocketTests(PostgresApiFixture):
         token = student_headers['Authorization'].split(' ',1)[1]
         app = create_app(self.runtime_url,storage_root=self.storage)
         pubsub = FakePubsub()
+        verified=False
         def socket_scenario():
+            nonlocal verified
             with TestClient(app,backend_options={'loop_factory':asyncio.SelectorEventLoop}) as client:
                 app.state.ws_redis.pubsub = lambda: pubsub
                 for url in (f'/ws/classroom/{self.cid}',f'/ws/classroom/{self.cid}?token=bad'):
@@ -146,7 +148,14 @@ class CleanupSocketTests(PostgresApiFixture):
                     pubsub.messages.put(json.dumps({'classroom_id':self.cid,'payload':{'type':'calendar_updated','event_id':'private'}}))
                     pubsub.messages.put(json.dumps({'classroom_id':'global_events','payload':{'type':'calendar_updated','event_id':'public'}}))
                     self.assertEqual(socket.receive_json()['event_id'],'public')
-        await asyncio.to_thread(socket_scenario)
+                    verified=True
+        def checked_scenario():
+            try:socket_scenario()
+            except (FutureCancelledError,asyncio.CancelledError):
+                # TestClient can cancel its ASGI future during close. A cancel
+                # before all authorization/delivery assertions must still fail.
+                if not verified:raise
+        await asyncio.to_thread(checked_scenario)
 
     @unittest.skipUnless(os.getenv('TEST_REDIS_URL'),'Set TEST_REDIS_URL for live Redis gateway integration')
     async def test_real_redis_update_reaches_authenticated_socket(self):

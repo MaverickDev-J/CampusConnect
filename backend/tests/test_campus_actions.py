@@ -97,6 +97,9 @@ class CampusActionTests(PostgresApiFixture):
             for statement in grants.split(';'):
                 if statement.strip():
                     connection.execute(statement.replace(':"runtime_role"', sql.Identifier(self.role).as_string(connection)))
+            # Make the fixture unambiguously due; this checks failure/retry,
+            # rather than timing the initial enqueue/claim boundary.
+            connection.execute("UPDATE campus_outbox SET available_at=now()-interval '1 second' WHERE actor_id=%s",(self.teacher['user_id'],))
         publish = AsyncMock(side_effect=RuntimeError('Redis unavailable'))
         dispatcher = CampusOutbox(self.app.state.accounts.factory, publish)
         self.assertTrue(await dispatcher.run_once())

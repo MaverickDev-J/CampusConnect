@@ -53,6 +53,7 @@ node_modules/
 out/
 .npm
 package-lock.json
+!frontend/package-lock.json
 
 # Large Archives
 *.zip

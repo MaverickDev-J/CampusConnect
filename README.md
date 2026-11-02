@@ -1,69 +1,55 @@
-# 🎓 CampusConnect
+# CampusConnect
 
-### AI-Powered Multi-Tenant Campus Learning Platform
+An AI learning platform with classroom-scoped document chat and faculty workflows that require human approval before posting.
 
-[![Live Demo](https://img.shields.io/badge/%F0%9F%9A%80_Live_Demo-Click_Here-blue?style=for-the-badge)](https://yjoy1572--campusconnect-frontend-web.modal.run)
+**[Open the live application](https://yjoy1572--campusconnect-postgres-frontend-web.us-east.modal.run)**
 
-CampusConnect is a distributed, classroom-scoped AI tutoring system. When teachers upload course materials, students instantly get access to a scoped AI tutor with real-time updates, background processing, and cost-optimized LLM routing.
+Faculty upload course PDFs and manage classrooms. Enrolled students ask questions, receive streamed answers, and inspect cited document pages. Faculty can prepare a sourced revision-session announcement and calendar event, review and approve the draft, and inspect its execution trace.
 
----
+## Current architecture
 
-## 🛠️ System Architecture & Design
+| Layer | Implementation |
+| --- | --- |
+| Frontend | Next.js, student/faculty views, source previews, Quality & Runs dashboard |
+| API | FastAPI, REST, SSE chat streaming, authenticated WebSockets |
+| Chat workflow | Seven-node LangGraph with exact-cache lookup and conditional conversational/retrieval/web/out-of-scope routing |
+| Retrieval | Gemini Embedding 2, 1536-dimensional pgvector search, weighted PostgreSQL full-text search, Reciprocal Rank Fusion |
+| Text models | Groq `openai/gpt-oss-120b` for routing, generation, bounded reranking and faculty drafts |
+| Tools and actions | Six authenticated MCP tools; separate durable LangGraph review/execute workflow |
+| Persistence | Neon PostgreSQL, row-level security, revisioned chunks, payload-bound approvals, transactional actions and outbox |
+| Background processing | Leased ingestion/delivery/cleanup jobs, bounded Modal workers, hourly rescue |
+| Deployment | Modal API/frontend containers and persistent upload volume; managed PostgreSQL in Neon |
+| Live updates | Redis Pub/Sub and classroom-authorized WebSockets |
 
-```
-Client → Nginx (Reverse Proxy & Static Files)
-  ├── /api/*     → FastAPI Backend (Gunicorn, async-native)
-  ├── /ws/*      → WebSocket Hub (Classroom-scoped, Redis PubSub)
-  ├── /flower/*  → Celery Monitoring Dashboard
-  └── /*         → Next.js Frontend (React 19 Server Components)
-```
+Course answers use supplied evidence and acknowledge missing information. Exact-answer reuse checks the user, classroom, history, document revision, corpus version, and answer policy. Semantic reuse is disabled. Shared provider budgets preserve answer capacity; retrieval and reranking fallbacks are recorded explicitly.
 
-### 🧠 Key System Design Concepts
+Faculty approval is bound to the draft version and payload hash. Repeated execution returns the persisted result. Notification delivery can repeat; PostgreSQL protects the underlying domain actions.
 
-*   **Multi-Role Redis Stack:** Serves simultaneously as Celery broker, Celery backend, WebSocket PubSub hub, and fast memory cache to minimize infrastructure overhead.
-*   **LangGraph StateGraph Agent:** Operates a 6-node state-machine with conditional routing to bypass costly vector database embeddings for simple conversational queries.
-*   **3-Tier PDF Ingestion Queue:** An asynchronous Celery pipeline that processes PDFs via Gemini, falling back to Docling and PyMuPDF to ensure zero-failure ingestion under rate limits.
-*   **Semantic Cache:** Implements vector-similarity caching rather than exact SHA-256 string matching, allowing questions with similar semantic intent to hit the cache instantly.
-*   **Gemini Key Rotation:** Optimizes API limits by rotating keys across 3 isolated pools (Routing, Chat, and Ingestion).
-*   **ChromaDB Server Mode:** Decoupled vector store service to eliminate SQLite database-locking issues between FastAPI threads and Celery processes.
-*   **Nginx Edge Routing:** Offloads TLS termination and static media file serving directly from Python, upgrading client connections to WebSockets dynamically.
+## Run and inspect
 
----
+The active API entry point is `backend/postgres_main.py`. Configure a restricted runtime `DATABASE_URL`, Redis, a strong JWT secret, Groq credentials, and Gemini embedding credentials in the ignored environment file. Provision schemas and API/worker roles using [OPERATIONS.md](OPERATIONS.md).
 
-## 🚀 Quick Start (Development)
-
-### 1. Run Infrastructure
-```bash
-docker compose up -d  # Starts MongoDB + Redis + ChromaDB
-```
-
-### 2. Backend & Celery Worker
-```bash
+```sh
 cd backend
-cp .env.example .env    # Configure Gemini API keys & DB URLs
-uv sync                 # Install Python dependencies
-uvicorn main:app --reload --port 8000
-
-# Start Celery (in separate terminal)
-celery -A core.celery_app worker --loglevel=info -P solo
+uv sync --frozen
+uv run uvicorn postgres_main:app --reload --port 8000
 ```
 
-### 3. Frontend
-```bash
+```sh
 cd frontend
-npm install
-npm run dev             # Next.js running on port 3000
+npm ci
+npm run dev
 ```
 
----
+Local PostgreSQL is available through `docker compose -f compose.postgres.yml up -d --wait`. Hosted ingestion and delivery use `backend/modal_staging.py`. The older MongoDB/Chroma/Celery entry points and compose files remain legacy code, separate from the deployed PostgreSQL application.
 
-## 🌐 Production Deployment
+## Verification and evaluation
 
-Deploy the full stack behind the preconfigured Nginx proxy:
-```bash
-docker compose -f docker-compose.prod.yml up -d --build
-```
+Tests cover restricted-role API/database access, MCP authorization, ingestion/revision/cache behaviour, approval/retry recovery, and correlated workflow/background tracing. Operational verification includes 10,000-chunk local retrieval, five concurrent scoped principals, isolated Modal startup probes, and a disposable Neon point-in-time recovery rehearsal.
 
-*   **API Docs:** `/docs` (Auto-generated OpenAPI)
-*   **Monitoring:** `/flower/` (Celery task tracker)
-*   **Health Checks:** `/health` (System status for Redis, MongoDB, and Chroma)
+The private evaluation contains 60 cases. Fifty retrieval comparisons and ten hosted authorization checks are recorded; source labels require faculty review. Provisional results on the networking PDF favour dense retrieval, so no hybrid accuracy improvement is claimed. Budget fallbacks and sampled answer regressions are reported separately from retrieval scores.
+
+- [Interview walkthrough and measured claim limits](INTERVIEW_DEMO.md)
+- [Deployment, tests, quotas, retention and recovery](OPERATIONS.md)
+
+Private source excerpts, credentials, generated-answer reports, and the local implementation plan are excluded from Git.

@@ -140,3 +140,41 @@ async def diagnose():
     finally:
         await redis.aclose()
         await engine.dispose()
+
+
+@app.function(image=image,secrets=api_secrets,volumes={'/data':volume},region='ap',
+              memory=1024,timeout=120,max_containers=1,single_use_containers=True)
+async def startup_probe():
+    """Fresh representative ASGI startup; no provider calls or domain writes."""
+    import time
+    started=time.perf_counter()
+    from postgres_main import create_app
+    import httpx
+    imported=time.perf_counter()
+    web=create_app()
+    async with web.router.lifespan_context(web):
+        ready=time.perf_counter()
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=web),base_url='http://probe') as client:
+            requests=[]
+            for _ in range(3):
+                before=time.perf_counter()
+                response=await client.get('/health')
+                if response.status_code!=200:raise RuntimeError('Startup health check failed')
+                requests.append(round((time.perf_counter()-before)*1000,2))
+    return {'imports_ms':round((imported-started)*1000,2),
+            'application_startup_ms':round((ready-imported)*1000,2),'health_ms':requests}
+
+
+@app.local_entrypoint()
+def measure_startup():
+    import json
+    import time
+    measurements=[]
+    for index in range(2):
+        started=time.perf_counter();result=startup_probe.remote()
+        measurements.append({'fresh_container':index+1,'remote_roundtrip_ms':round((time.perf_counter()-started)*1000,2),**result})
+        print('Fresh startup probe '+str(index+1)+' passed',flush=True)
+    report={'kind':'isolated-modal-startup','provider_calls':0,'measurements':measurements,
+            'limitation':'Remote roundtrip includes scheduling and network; not a public chat latency SLO.'}
+    output=ROOT/'storage/operations/modal-startup.json';output.parent.mkdir(parents=True,exist_ok=True)
+    output.write_text(json.dumps(report,indent=2),encoding='utf-8')
