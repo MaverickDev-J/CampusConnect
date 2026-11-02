@@ -16,9 +16,10 @@ class CampusDocuments:
               {'limit': limit, 'offset': offset})).mappings().all()
             return {'courses': [dict(row) for row in rows], 'offset': offset, 'limit': limit}
 
-    async def search(self, principal, classroom_id, query):
+    async def search(self, principal, classroom_id, query, *, rerank=True):
         await self.files.authorize(principal, classroom_id)
-        state = {'user_id': principal['user_id'], 'scope_classroom_id': classroom_id, 'query': query}
+        state = {'user_id': principal['user_id'], 'scope_classroom_id': classroom_id, 'query': query,
+                 'skip_rerank':not rerank}
         state.update(await self.rag.embed(state))
         result = await self.rag.retrieve(state)
         ids = [source['chunk_id'] for source in result['used_sources']]

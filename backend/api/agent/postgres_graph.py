@@ -16,6 +16,7 @@ from core.telemetry import stage
 
 
 class PgState(AgentState):
+    skip_rerank: bool
     cache_bypass: bool
     rerank_fallback_reason: str | None
     routing_fallback_reason: str | None
@@ -125,11 +126,14 @@ class PostgresRag:
                     strategy=strategy)
             event['candidate_count']=len(candidates)
         fallback = state.get("rerank_fallback_reason")
-        if self.reranker:
+        if self.reranker and not state.get('skip_rerank'):
             with stage('reranking') as event:
                 ranking = await self.reranker.rerank(state["query"], candidates)
                 event['fallback_reason']=ranking.fallback_reason
             candidates, fallback = ranking.candidates, ranking.fallback_reason or fallback
+        elif self.reranker and state.get('skip_rerank'):
+            with stage('reranking',skipped=True,reason='caller_disabled') as event:
+                event['status']='skipped'
         chunks, sources = await self.evidence(state, candidates)
         return {"retrieved_chunks": chunks, "used_sources": sources, "no_chunks_found": not chunks,
                 "processing_status": "generating", "rerank_fallback_reason": fallback,'retrieval_strategy':strategy}

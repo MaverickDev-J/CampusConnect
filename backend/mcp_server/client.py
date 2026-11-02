@@ -26,6 +26,8 @@ class McpDocumentsClient:
         try:
             async with Client(transport, timeout=45) as client:
                 with stage('mcp.client.search_documents'):
-                    return (await client.call_tool('search_documents', {'classroom_id': classroom_id, 'query': query})).data
+                    # Faculty preparation needs the text budget for its draft.
+                    # Hybrid retrieval supplies evidence without another Groq call.
+                    return (await client.call_tool('search_documents', {'classroom_id': classroom_id, 'query': query,'rerank':False})).data
         except (ToolError, httpx.HTTPError, TimeoutError):
             raise HTTPException(503, 'Course document tools are unavailable; please retry') from None

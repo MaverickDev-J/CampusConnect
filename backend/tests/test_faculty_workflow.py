@@ -2,6 +2,7 @@
 import asyncio
 from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, patch
+from types import SimpleNamespace
 
 import httpx
 import jwt
@@ -16,6 +17,7 @@ from api.agent.faculty_workflow import DraftContent, FacultyWorkflow
 from database.postgres import principal_session
 from mcp_server.auth import AUDIENCE, ISSUER, issue_mcp_token
 from core.config import settings
+from api.services.retrieval.ranking import RerankResult
 from tests.test_postgres_api import PostgresApiFixture
 
 
@@ -52,6 +54,19 @@ class FacultyWorkflowTests(PostgresApiFixture):
     @staticmethod
     def review_body(draft):
         return {key: draft[key] for key in ('version','payload_hash')}
+
+    async def test_draft_preserves_text_budget_and_mcp_search_keeps_reranking_default(self):
+        await self.course()
+        async def rank(query,candidates):return RerankResult(candidates)
+        rerank=AsyncMock(side_effect=rank)
+        self.app.state.rag.reranker=SimpleNamespace(rerank=rerank)
+        draft=await self.draft()
+        self.assertTrue(draft['sources'])
+        rerank.assert_not_awaited()
+        async with self.mcp_client(issue_mcp_token(self.teacher['user_id'],'teacher')) as client:
+            result=(await client.call_tool('search_documents',{'classroom_id':self.cid,'query':'backpropagation'})).data
+        self.assertTrue(result['sources'])
+        rerank.assert_awaited_once()
 
     async def test_persistent_review_restart_and_concurrent_execution(self):
         await self.course()
