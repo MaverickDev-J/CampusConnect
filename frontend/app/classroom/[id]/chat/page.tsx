@@ -24,6 +24,7 @@ import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sidebar } from "@/app/components/Sidebar";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 
@@ -318,7 +319,7 @@ export default function ClassroomChatPage({ params }: { params: Promise<{ id: st
                                     animate={{ opacity: 1, y: 0 }}
                                     className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
                                 >
-                                    <div className={`flex gap-3 max-w-[85%] ${msg.role === "user" ? "flex-row-reverse" : "flex-row"}`}>
+                                    <div className={`flex min-w-0 gap-3 max-w-[85%] ${msg.role === "user" ? "flex-row-reverse" : "flex-row"}`}>
                                         <div className={`w-8 h-8 rounded-xl flex-shrink-0 flex items-center justify-center shadow-md transition-transform hover:scale-105 duration-300 ${
                                             msg.role === "user" 
                                             ? "bg-white text-slate-600 border border-slate-100" 
@@ -326,8 +327,8 @@ export default function ClassroomChatPage({ params }: { params: Promise<{ id: st
                                         }`}>
                                             {msg.role === "user" ? <User size={16} /> : <Bot size={18} />}
                                         </div>
-                                        <div className={`space-y-2 ${msg.role === "user" ? "text-right" : "text-left"}`}>
-                                            <div className={`inline-block px-5 py-3.5 rounded-2xl shadow-sm leading-relaxed text-sm tracking-tight ${
+                                        <div className={`min-w-0 max-w-full space-y-2 ${msg.role === "user" ? "text-right" : "text-left"}`}>
+                                            <div className={`inline-block max-w-full px-5 py-3.5 rounded-2xl shadow-sm leading-relaxed text-sm tracking-tight ${
                                                 msg.role === "user" 
                                                 ? "bg-slate-900 text-white rounded-tr-sm font-semibold" 
                                                 : "bg-white border border-slate-100 text-slate-800 rounded-tl-sm font-medium"
@@ -335,9 +336,14 @@ export default function ClassroomChatPage({ params }: { params: Promise<{ id: st
                                                 {msg.role === "user" ? msg.content : (
                                                     <div className="markdown-content">
                                                         <ReactMarkdown 
-                                                            remarkPlugins={[remarkMath]}
+                                                            remarkPlugins={[remarkGfm, remarkMath]}
                                                             rehypePlugins={[rehypeKatex]}
                                                             components={{
+                                                                table: ({ children }) => <div role="region" aria-label="Answer table" tabIndex={0} className="my-4 max-w-full overflow-x-auto rounded-xl border border-slate-200"><table className="w-full min-w-[24rem] border-collapse text-left text-sm leading-6">{children}</table></div>,
+                                                                thead: ({ children }) => <thead className="border-b border-slate-200 bg-slate-50 text-slate-900">{children}</thead>,
+                                                                tbody: ({ children }) => <tbody className="divide-y divide-slate-100">{children}</tbody>,
+                                                                th: ({ children, style }) => <th scope="col" style={style} className="min-w-[9rem] px-4 py-3 align-top font-semibold">{children}</th>,
+                                                                td: ({ children, style }) => <td style={style} className="min-w-[9rem] whitespace-normal break-words px-4 py-3 align-top">{children}</td>,
                                                                 p: ({ children }: any) => <p className="leading-relaxed mb-3 last:mb-0">{children}</p>,
                                                                 strong: ({ children }: any) => <strong className="text-amber-900 font-black tracking-tight">{children}</strong>,
                                                                 ul: ({ children }: any) => <ul className="space-y-2 my-3">{children}</ul>,
