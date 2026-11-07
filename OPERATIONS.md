@@ -55,7 +55,7 @@ Report: `backend/storage/operations/restore-report.json`. Never reset or restore
 - `python -m scripts.evaluate_retrieval --dataset <private-json> --url <api-origin> --output storage/evals/latest`: faculty `CAMPUS_API_TOKEN` required, rate-limited/resumable comparisons, paired dense/hybrid/rerank scores, current-corpus validation, source commit and provisional-label status. Existing comparison/report endpoints enforce authorization.
 - `python -m scripts.evaluate_answers --dataset <private-json> --url <api-origin> --case-id <id> --trials 2`: faculty-only uncached benchmark chat, separate origin, temporary sessions cleaned afterward, private answer/evidence/timing output, manual correctness/citation/refusal rubric. Completed successful trials resume; an unavailable provider stops the run rather than counting a failed answer as a quality score.
 
-Keep datasets, source excerpts, raw answers, auth files, screenshots, and operational JSON reports in ignored storage. Review labels independently of the model's rankings. Keep related paraphrases in the same split; report sample counts, fallbacks, missing measurements, and limited coverage. A provisional score is not an interview claim of validated accuracy.
+Keep datasets, source excerpts, raw answers, auth files, screenshots, and operational JSON reports in ignored storage. Review labels independently of the model's rankings. Keep related paraphrases in the same split; report sample counts, fallbacks, missing measurements, and limited coverage. Provisional scores do not establish validated accuracy.
 
 ## Provider incidents
 

@@ -91,7 +91,6 @@ The UI release passed a production build and hosted browser checks for both stud
 
 The private evaluation contains 60 cases. Fifty retrieval comparisons and ten hosted authorization checks are recorded; source labels require faculty review. Provisional results on the networking PDF favour dense retrieval, so no hybrid accuracy improvement is claimed. Budget fallbacks and sampled answer regressions are reported separately from retrieval scores.
 
-- [Interview walkthrough and measured claim limits](INTERVIEW_DEMO.md)
 - [Deployment, tests, quotas, retention and recovery](OPERATIONS.md)
 
 Private source excerpts, credentials, generated-answer reports, and the local implementation plan are excluded from Git.

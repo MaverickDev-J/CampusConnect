@@ -1,4 +1,4 @@
-"""Demo router — frictionless guest login for interviewers.
+"""Demo router for guest access to a sample classroom.
 
 POST /api/auth/demo-login
     - Idempotently seeds: demo teacher, demo student, classroom,
@@ -144,7 +144,7 @@ ARCHITECTURE_CHUNKS = [
 @router.post("/api/auth/demo-login")
 async def demo_login():
     """
-    Frictionless demo login for interviewers.
+    Guest login to a sample classroom.
 
     Creates a pre-seeded environment on first call, then returns JWT instantly.
     Idempotent — safe to call repeatedly.
