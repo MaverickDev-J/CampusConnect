@@ -12,8 +12,7 @@ uv run python -m unittest discover -s tests -v
 ```
 
 The Compose password is for loopback-only local development. Use a secret and TLS
-for a hosted database. The application still uses the legacy store while route
-migration is in progress; these migrations do not switch production traffic.
+for a hosted database. The deployed application uses these PostgreSQL schemas.
 
 Migration 001 creates the first application tables, vector storage, and lexical
 index. Migration 002 adds classroom read policies. Migration 003 adds account and
@@ -36,10 +35,8 @@ uv run python postgres_main.py
 The staging API listens on loopback port 8001 and serves the existing auth/profile
 and classroom routes, file upload/list/detail/download/retry, and chat session/
 history/SSE routes, plus `/health`. It rejects owner/bypass-RLS connections at
-startup. Production `main:app` still uses the legacy store; the staging entrypoint
-is for migration verification and will gain the remaining routes before cutover.
-Keep it local until rate limiting, hosted CORS/origin configuration, remaining routes,
-and deployment checks are complete. Migration 006 enables safe file/classroom
+startup. Hosted deployment uses `postgres_main:app` with explicit CORS origins.
+Migration 006 enables safe file/classroom
 deletion and the PostgreSQL WebSocket gateway.
 Local frontend ports 3000/3001 are allowed by staging CORS. Set the frontend's
 NEXT_PUBLIC_API_URL to `http://localhost:8001` when verifying the migrated routes.
@@ -61,16 +58,15 @@ The API role cannot claim jobs. Workers claim jobs using SKIP LOCKED and a lease
 persist extracted chunks before embedding, and save each successful vector. A
 restart can reclaim an expired lease and reuse those vectors. Failed work retries
 after 30 seconds, at most three attempts; the authorized retry endpoint can reset
-a failed job. Revision 1 is for new Embedding 2 documents only; legacy vectors need
-a separately versioned import/re-embedding path, which is not a cutover procedure
-yet. Native PDF extraction preserves real page numbers; fallback extraction uses
+a failed job. Revision 1 uses Embedding 2; changing embedding models requires
+versioned re-embedding. Native PDF extraction preserves real page numbers; fallback extraction uses
 null page provenance instead of inventing page references. Chunking currently uses
 300-word windows with 40-word overlap, not a tokenizer-based token guarantee.
 
 Chat runs a PostgreSQL LangGraph with the shared router, Embedding 2, lexical/vector
 RRF, and optional API reranking. Query embedding failure falls back to lexical
-retrieval. Reranking failure falls back to RRF. No legacy answer caches are reused
-until safe corpus/permission-versioned cache keys are integrated. Chat turns have
+retrieval. Reranking failure falls back to RRF. Exact answer-cache keys include
+user, classroom, conversation, corpus revision, and answer policy. Chat turns have
 an exclusive expiring lease, and user/assistant history is committed atomically
 after generation succeeds. Provider failures return the existing SSE error/done
 contract without persisting incomplete answers. Source revisions are rechecked
@@ -215,8 +211,7 @@ worker grants after upgrading. All PostgreSQL API/worker processes must use the
 same GEMINI_BUDGET_PROJECT label and database. The default label is
 `campusconnect-default`; it aggregates every configured key pool conservatively.
 It is not automatically discovered from Google credentials. Provision matching
-owner-managed policies before using another label. The legacy production
-entrypoint does not use these controls until cutover.
+owner-managed policies before using another label.
 
 Default application caps for light demo use:
 
@@ -331,13 +326,9 @@ users, classrooms or files. Enable it only after deliberately curating the fixed
 demo classroom. Administrator actions recheck the current database role; account
 deletion refuses to silently erase owned classrooms, files or posts.
 
-The new Neon deployment starts with fresh user-created data. Importing the old
-MongoDB/Chroma dataset is outside the selected rollout.
-
 The separate Modal deployment is `modal_staging.py` (run commands from backend).
-Its frozen uv image excludes the optional `legacy` Chroma and `local-ocr` Docling
-extras. Existing legacy entrypoints need `uv sync --extra legacy`; local OCR is
-optional via `--extra local-ocr`. Docker users can build `Dockerfile.postgres`.
+Its frozen uv image excludes local OCR dependencies. Local OCR is optional via
+`uv sync --extra local-ocr`. Docker users can build `Dockerfile.postgres`.
 Both hosted paths require managed PostgreSQL, a reachable Redis connection and
 explicit `CORS_ORIGINS`; uploads are the only data on the Modal Volume.
 

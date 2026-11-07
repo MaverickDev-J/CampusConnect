@@ -79,7 +79,7 @@ NEXT_PUBLIC_QUALITY_DASHBOARD=true
 NEXT_PUBLIC_DEMO_ENABLED=false
 ```
 
-Local PostgreSQL is available through `docker compose -f compose.postgres.yml up -d --wait`. Hosted ingestion and delivery use `backend/modal_staging.py`. The older MongoDB/Chroma/Celery entry points and compose files remain legacy code, separate from the deployed PostgreSQL application.
+Local PostgreSQL is available through `docker compose -f compose.postgres.yml up -d --wait`. Hosted ingestion and delivery use `backend/modal_staging.py`. Use `backend/postgres_main.py` and `compose.postgres.yml` for the current application.
 
 The frontend deploys through `frontend/modal_staging.py`, with `CAMPUS_STAGING_API_URL` set to the deployed HTTPS backend origin. Modal runs the application containers and persistent upload volume; Neon hosts PostgreSQL. See [OPERATIONS.md](OPERATIONS.md) for deployment commands and migration requirements.
 

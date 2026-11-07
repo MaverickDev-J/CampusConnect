@@ -31,35 +31,35 @@ const techStack = [
     },
     {
         name: "LangGraph",
-        role: "Multi-Agent Pipeline",
+        role: "Query Routing",
         icon: Network,
         color: "from-violet-400 to-purple-500",
         bg: "bg-violet-50",
     },
     {
-        name: "Celery",
-        role: "Task Queue",
+        name: "Modal",
+        role: "Background Workers",
         icon: Layers,
         color: "from-lime-400 to-green-500",
         bg: "bg-lime-50",
     },
     {
         name: "Redis",
-        role: "Cache · Broker · PubSub",
+        role: "Real-Time Pub/Sub",
         icon: Zap,
         color: "from-red-400 to-rose-500",
         bg: "bg-red-50",
     },
     {
-        name: "MongoDB",
-        role: "Document Store",
+        name: "PostgreSQL",
+        role: "Classroom Data",
         icon: Database,
         color: "from-green-400 to-emerald-600",
         bg: "bg-green-50",
     },
     {
-        name: "ChromaDB",
-        role: "Vector Embeddings",
+        name: "pgvector",
+        role: "Vector Search",
         icon: Cpu,
         color: "from-amber-400 to-orange-500",
         bg: "bg-amber-50",
@@ -71,27 +71,27 @@ const techStack = [
 const features = [
     {
         icon: MessageSquare,
-        title: "Multi-Agent AI Chat",
+        title: "Course Document Chat",
         description:
-            "6-node LangGraph pipeline with real-time token streaming. Router → Classifier → Retriever → Web Search → Synthesis → Guardrail.",
+            "Ask questions about your course materials and receive streamed answers with document and page citations.",
         accent: "from-indigo-500 to-blue-600",
         badge: "LangGraph",
     },
     {
         icon: FileText,
-        title: "3-Tier Document Processing",
+        title: "Document Processing",
         description:
-            "Gemini multimodal extraction for tables & diagrams, Docling for structured text, PyMuPDF as bulletproof fallback. Every PDF gets processed.",
+            "Upload course PDFs for background processing, with extraction fallbacks and resumable jobs when capacity becomes available.",
         accent: "from-amber-500 to-orange-600",
-        badge: "Celery",
+        badge: "Modal",
     },
     {
         icon: Timer,
-        title: "Semantic Caching",
+        title: "Classroom-Scoped Answers",
         description:
-            "Sub-10ms responses for similar queries via cosine similarity (0.93 threshold). Redis-backed with 24h TTL and per-classroom namespacing.",
+            "Search materials from your enrolled classroom. Repeated answers are reused only when their scope, conversation, and document versions match.",
         accent: "from-emerald-500 to-teal-600",
-        badge: "Redis",
+        badge: "PostgreSQL",
     },
 ];
 
@@ -189,9 +189,8 @@ export default function LandingPage() {
                     </h1>
 
                     <p className="text-lg md:text-xl text-slate-500 font-medium leading-relaxed max-w-2xl mx-auto mb-12">
-                        A distributed, multi-agent classroom platform powered by LangGraph, 
-                        Celery, and Redis. Upload documents, ask questions, get AI-synthesized 
-                        answers — all in real time.
+                        A shared workspace for students and faculty. Upload course materials,
+                        ask questions with source citations, and prepare revision sessions.
                     </p>
 
                     <div className="flex flex-col sm:flex-row items-center justify-center gap-4">

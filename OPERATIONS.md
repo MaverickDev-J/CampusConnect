@@ -1,6 +1,6 @@
 # CampusConnect operations
 
-The PostgreSQL staging application uses Neon for persistent relational/vector data and a Modal v2 volume for uploads. PostgreSQL does not run inside the Modal application container. Legacy Modal apps and their data are separate.
+The application uses Neon for persistent relational/vector data and a Modal v2 volume for uploads. PostgreSQL runs as a managed database, outside the Modal application container.
 
 ## Release checks
 
