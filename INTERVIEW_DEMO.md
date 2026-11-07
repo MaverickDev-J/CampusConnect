@@ -2,6 +2,8 @@
 
 Open the [hosted application](https://yjoy1572--campusconnect-postgres-frontend-web.us-east.modal.run). Use your existing faculty and student accounts; credentials stay in the ignored local file.
 
+The header and chat include a light/dark toggle. Theme choices persist across navigation and reloads; mobile navigation and both role views are supported. Chat renders Markdown tables and lists, and preserves your position when you scroll up during a streamed answer.
+
 ## Five-minute walkthrough
 
 1. **Student evidence (one minute).** Open the networking classroom, confirm its PDF is ready, and ask: “How do synchronous and statistical TDM allocate time slots?” Open a cited page and compare it with the answer. Suggested questions remain available without spending model quota.

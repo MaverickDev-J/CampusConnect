@@ -16,6 +16,16 @@ Run `npm run build` from `frontend`. For schema changes, first run the disposabl
 
 Deploy the backend with `modal deploy modal_staging.py`. Frontend deployment uses `frontend/modal_staging.py` and requires the existing `CAMPUS_STAGING_API_URL` at build and runtime. On Windows, set `$env:PYTHONUTF8='1'` before Modal commands. The current schema is `012_operations`.
 
+Deploy the frontend from `frontend` using the active API origin:
+
+```powershell
+$env:PYTHONUTF8='1'
+$env:CAMPUS_STAGING_API_URL='https://yjoy1572--campusconnect-postgres-fastapi-app.us-east.modal.run'
+modal deploy modal_staging.py
+```
+
+This builds the public API/WebSocket origins and faculty/quality feature switches into the frontend image. The existing frontend URL remains unchanged. After a UI release, check student and faculty views, light/dark preference persistence, mobile navigation, chat Markdown rendering, and scroll behaviour during streaming. UI polish does not change backend model latency or provider quotas.
+
 After release, verify `/health`, a ready PDF, student SSE chat and citations, faculty review/approval, linked traces, and delivery. Do not run integration fixtures or fault injection against the main Neon branch.
 
 ## Traces and retention
