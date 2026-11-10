@@ -85,12 +85,25 @@ class GroqAnswer:
         bounded['classroom_context']={k:self.llm.trim(v or '',100) for k,v in (state.get('classroom_context') or {}).items()}
         bounded['chat_history']=[replace(m,content=self.llm.trim(m.content,100)) for m in state.get('chat_history',[])[-4:]]
         bounded['web_search_results']=[{**r,'body':self.llm.trim(r.get('body',''),100)} for r in state.get('web_search_results',[])[:3]]
-        for per_chunk in (220,160,100,60):
-            bounded['retrieved_chunks']=[replace(c,text=self.llm.trim(c.text,per_chunk)) for c in state.get('retrieved_chunks',[])[:6]]
-            prompt=build_grounded_prompt(bounded)
-            if self.llm.count([{'role':'system','content':GROUNDED_SYSTEM_PROMPT},{'role':'user','content':prompt}])<=2800:
-                return prompt
-        raise BudgetExhausted('input_budget_exceeded',60)
+        # Spend the shared context budget on whole passages in retrieval order.
+        # Per-passage prefix cuts can silently remove the final rows of a table.
+        candidates=state.get('retrieved_chunks',[])[:6]
+        bounded['retrieved_chunks']=[]
+        bounded['evidence_budget']={'omitted_passages':len(candidates)}
+        def fits():
+            return self.llm.count([{'role':'system','content':GROUNDED_SYSTEM_PROMPT},
+                {'role':'user','content':build_grounded_prompt(bounded)}])<=2800
+        if not fits():
+            raise BudgetExhausted('input_budget_exceeded',60)
+        for chunk in candidates:
+            bounded['retrieved_chunks'].append(chunk)
+            bounded['evidence_budget']['omitted_passages']=len(candidates)-len(bounded['retrieved_chunks'])
+            if not fits():
+                bounded['retrieved_chunks'].pop()
+                bounded['evidence_budget']['omitted_passages']=len(candidates)-len(bounded['retrieved_chunks'])
+        if candidates and not bounded['retrieved_chunks']:
+            raise BudgetExhausted('input_budget_exceeded',60)
+        return build_grounded_prompt(bounded)
 
     async def __call__(self,state):
         with stage('answer.policy',version=ANSWER_POLICY_VERSION):

@@ -1,5 +1,6 @@
 """Groq transport, total-token accounting and bounded RAG regressions."""
 import asyncio
+import json
 from contextlib import aclosing
 import os
 from types import SimpleNamespace as NS
@@ -104,14 +105,41 @@ class GroqTransportTests(unittest.IsolatedAsyncioTestCase):
 
     def test_answer_bounds_real_context_without_losing_question_or_mutating_sources(self):
         llm,_=fake_llm(AsyncMock())
-        chunks=[RetrievedChunk(text='network evidence '*2000,source_file='lecture.pdf',file_type='pdf',page_number=i) for i in range(1,7)]
+        chunks=[RetrievedChunk(text='network evidence '*300,source_file='lecture.pdf',file_type='pdf',page_number=i) for i in range(1,7)]
         state={'query':'Explain TCP reliability.','retrieved_chunks':chunks,'chat_history':[ChatMessage(role='user',content='history '*1000)],
                'classroom_context':{'name':'Networking','subject':'Networks'}}
         prompt=GroqAnswer(llm).prompt(state)
         self.assertIn(state['query'],prompt)
         self.assertIn('lecture.pdf',prompt)
-        self.assertGreater(len(chunks[0].text),10000)
-        self.assertLess(llm.count([{'content':prompt}]),2800)
+        self.assertEqual(chunks[0].text,'network evidence '*300)
+        payload=json.loads(prompt)
+        self.assertGreater(len(payload['course_evidence']),0)
+        self.assertGreater(payload['evidence_budget']['omitted_passages'],0)
+        for evidence in payload['course_evidence']:
+            self.assertEqual(evidence['text'],chunks[0].text)
+        from api.agent.grounding import GROUNDED_SYSTEM_PROMPT
+        self.assertLessEqual(llm.count([{'content':GROUNDED_SYSTEM_PROMPT},{'content':prompt}]),2800)
+
+    def test_syllabus_keeps_all_six_modules_beyond_the_old_prefix_limit(self):
+        llm,_=fake_llm(AsyncMock())
+        titles=['Introduction','Requirements Analysis','Project Scheduling',
+                'Software Design','Risk and Quality Assurance','Testing and Maintenance']
+        text='Detailed syllabus: '+' '.join(f'{i}. {title}. '+('Course topic details. '*30)
+            for i,title in enumerate(titles,1))
+        self.assertNotIn(titles[-1],llm.trim(text,220))
+        chunks=[RetrievedChunk(text=text,source_file='syllabus.pdf',file_type='pdf',page_number=2)]
+        chunks.extend(RetrievedChunk(text='References and assessment. '*40,source_file='syllabus.pdf',file_type='pdf',page_number=3) for _ in range(5))
+        payload=json.loads(GroqAnswer(llm).prompt({'query':'How many modules are in the syllabus?',
+            'retrieved_chunks':chunks}))
+        self.assertEqual(payload['course_evidence'][0]['text'],text)
+        for title in titles:
+            self.assertIn(title,payload['course_evidence'][0]['text'])
+
+    def test_oversized_evidence_is_not_silently_truncated(self):
+        llm,_=fake_llm(AsyncMock())
+        chunk=RetrievedChunk(text='evidence '*10000,source_file='large.pdf',file_type='pdf',page_number=1)
+        with self.assertRaises(BudgetExhausted):
+            GroqAnswer(llm).prompt({'query':'Count the entries.','retrieved_chunks':[chunk]})
 
 
 class GroqBudgetTests(PostgresApiFixture):
